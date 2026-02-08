@@ -26,6 +26,22 @@ function sleep(ms: number): Promise<void> {
 type CopilotBackend = 'copilot-cli' | 'gh-copilot' | 'none';
 
 let detectedBackend: CopilotBackend | null = null;
+let globalModel = 'claude-haiku-4.5';
+
+/** Set the AI model to use for all Copilot calls */
+export function setCopilotModel(model: string): void {
+  globalModel = model;
+}
+
+/** Get available models from copilot CLI */
+export function getAvailableModels(): string[] {
+  return [
+    'claude-sonnet-4.5', 'claude-haiku-4.5', 'claude-opus-4.6', 'claude-opus-4.6-fast',
+    'claude-opus-4.5', 'claude-sonnet-4', 'gemini-3-pro-preview',
+    'gpt-5.2-codex', 'gpt-5.2', 'gpt-5.1-codex-max', 'gpt-5.1-codex', 'gpt-5.1',
+    'gpt-5', 'gpt-5.1-codex-mini', 'gpt-5-mini', 'gpt-4.1',
+  ];
+}
 
 /** Detect which Copilot CLI backend is available */
 function detectBackend(): CopilotBackend {
@@ -65,13 +81,33 @@ export function getCopilotBackendName(): string {
 /**
  * Truncate and clean a prompt for safe CLI usage.
  * Keeps it under the arg limit and collapses whitespace.
+ * Detects output format from prompt content to avoid contradictory instructions.
  */
 function preparePrompt(prompt: string, maxLen = 6000): string {
-  // Prepend instruction to suppress narration and prevent file writes
-  const prefix = 'IMPORTANT: Output ONLY the requested content in Markdown format. ' +
-    'Do NOT include any explanatory text, narration, commentary, or phrases like ' +
-    '"Let me", "I will", "Here is", "Based on". Start directly with the Markdown content. ' +
-    'You may read project files for context but do NOT create or write any files.\n\n';
+  // Detect if the prompt asks for a specific non-markdown format
+  const isMermaid = /mermaid/i.test(prompt) && /diagram/i.test(prompt);
+  const isJson = /valid JSON/i.test(prompt);
+
+  let prefix: string;
+  if (isMermaid) {
+    prefix = 'IMPORTANT: Output ONLY the raw Mermaid diagram code. ' +
+      'No markdown fences, no explanatory text, no narration, no commentary. ' +
+      'Do NOT ask clarifying questions. Do NOT say "I will" or "Let me". ' +
+      'Start directly with the diagram type keyword (flowchart, sequenceDiagram, erDiagram, etc). ' +
+      'You may read project files for context but do NOT create or write any files.\n\n';
+  } else if (isJson) {
+    prefix = 'IMPORTANT: Output ONLY valid JSON. ' +
+      'No markdown fences, no explanatory text, no narration, no commentary. ' +
+      'Do NOT ask clarifying questions. ' +
+      'You may read project files for context but do NOT create or write any files.\n\n';
+  } else {
+    prefix = 'IMPORTANT: Output ONLY the requested content in Markdown format. ' +
+      'Do NOT include any explanatory text, narration, commentary, or phrases like ' +
+      '"Let me", "I will", "Here is", "Based on". Start directly with the Markdown content. ' +
+      'Do NOT ask clarifying questions — just generate the content. ' +
+      'You may read project files for context but do NOT create or write any files.\n\n';
+  }
+
   let clean = (prefix + prompt).replace(/\s+/g, ' ').trim();
   if (clean.length > maxLen) {
     clean = clean.slice(0, maxLen) + ' ... (truncated)';
@@ -174,7 +210,7 @@ export async function askCopilot(prompt: string, options?: CopilotOptions): Prom
           '--allow-all-tools',
           '--excluded-tools', 'write',
           '--no-ask-user',
-          '--model', 'claude-haiku-4.5',
+          '--model', globalModel,
         ], {
           encoding: 'utf-8',
           timeout: opts.timeoutMs,

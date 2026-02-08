@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import boxen from 'boxen';
 import { logger, setVerbose } from '../utils/logger.js';
 import { isGitRepo, getRepoName } from '../utils/git.js';
-import { isCopilotAvailable, getCopilotBackendName } from './copilot.js';
+import { isCopilotAvailable, getCopilotBackendName, setCopilotModel } from './copilot.js';
 import { OutputManager, OutputOptions } from './output-manager.js';
 import { PromptContext, buildFileTree } from './prompt-builder.js';
 import { createProgress } from './progress.js';
@@ -31,6 +31,7 @@ export interface AnalyzeOptions {
   ignore: string[];
   force: boolean;
   verbose: boolean;
+  model?: string;
   // Engine flags
   docs?: boolean;
   architecture?: boolean;
@@ -65,6 +66,11 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
   const isGit = isGitRepo(cwd);
   if (!isGit) {
     logger.warn('Not a Git repository — git-related analysis will be limited.');
+  }
+
+  if (opts.model) {
+    setCopilotModel(opts.model);
+    logger.info(`🧠 Model: ${opts.model}`);
   }
 
   if (!isCopilotAvailable()) {
@@ -119,11 +125,28 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
   // ─── Phase 4: Run engines ───
   const categories: ScoreCategory[] = [];
 
+  // Count total engines to run for overall progress
+  const engines = [
+    runAll || opts.docs,
+    runAll || opts.architecture,
+    runAll || opts.security,
+    runAll || opts.ci,
+    runAll || opts.apiTests,
+    runAll || opts.performance,
+    runAll || opts.team,
+    runAll || opts.health,
+  ].filter(Boolean).length;
+
+  const progress = createProgress();
+  progress.setTotalSteps(engines);
+
+  console.log(chalk.dim('  ⏳ Each AI analysis step may take 30-60s — this is normal.\n'));
+
   if (runAll || opts.docs) {
     const result = await runDocsEngine(
       { context, routes, recentCommits: gitAnalysis.recentCommits, tags: gitAnalysis.tags, hasReadme: configInfo.hasReadme },
       outputManager,
-      createProgress(),
+      progress,
     );
     categories.push({ name: 'Documentation', score: result.score, grade: calculateGrade(result.score), details: result.details });
   }
@@ -132,7 +155,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
     const result = await runArchitectureEngine(
       { context, imports, models, routes },
       outputManager,
-      createProgress(),
+      progress,
     );
     categories.push({ name: 'Architecture', score: result.score, grade: calculateGrade(result.score), details: result.details });
   }
@@ -141,7 +164,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
     const result = await runSecurityEngine(
       { context, rootDir: cwd, files: scanResult.files, hasEnvFile: configInfo.hasEnvFile, hasGitignore: configInfo.hasGitignore, hasDockerfile: configInfo.hasDockerfile },
       outputManager,
-      createProgress(),
+      progress,
     );
     categories.push({ name: 'Security', score: result.score, grade: calculateGrade(result.score), details: result.details });
   }
@@ -150,7 +173,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
     const result = await runCIEngine(
       { context, rootDir: cwd, hasDockerfile: configInfo.hasDockerfile, hasDockerCompose: configInfo.hasDockerCompose, hasCIConfig: configInfo.hasCIConfig, hasEnvExample: configInfo.hasEnvExample },
       outputManager,
-      createProgress(),
+      progress,
     );
     categories.push({ name: 'CI/CD', score: result.score, grade: calculateGrade(result.score), details: result.details });
   }
@@ -159,7 +182,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
     const result = await runAPITestEngine(
       { context, routes, files: scanResult.files },
       outputManager,
-      createProgress(),
+      progress,
     );
     categories.push({ name: 'Testing', score: result.score, grade: calculateGrade(result.score), details: result.details });
   }
@@ -168,7 +191,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
     const result = await runPerformanceEngine(
       { context, rootDir: cwd, files: scanResult.files },
       outputManager,
-      createProgress(),
+      progress,
     );
     categories.push({ name: 'Performance', score: result.score, grade: calculateGrade(result.score), details: result.details });
   }
@@ -177,7 +200,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
     const result = await runTeamEngine(
       { context, gitAnalysis, hasPRTemplate: configInfo.hasPRTemplate, hasIssueTemplates: configInfo.hasIssueTemplates, hasCodeowners: configInfo.hasCodeowners },
       outputManager,
-      createProgress(),
+      progress,
     );
     categories.push({ name: 'Collaboration', score: result.score, grade: calculateGrade(result.score), details: result.details });
   }
@@ -187,7 +210,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
     const healthResult = await runHealthEngine(
       { context, categories, filesScanned: scanResult.files.length, totalFiles: scanResult.totalFiles },
       outputManager,
-      createProgress(),
+      progress,
     );
 
     logger.blank();

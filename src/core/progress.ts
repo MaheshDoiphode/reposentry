@@ -5,14 +5,24 @@ export class Progress {
   private spinner: Ora;
   private current = 0;
   private total = 0;
+  private totalSteps = 0;
+  private completedSteps = 0;
   private label = '';
+  private engineLabel = '';
 
-  constructor() {
-    this.spinner = ora({ color: 'cyan' });
+  constructor(totalSteps = 0) {
+    this.totalSteps = totalSteps;
+    this.completedSteps = 0;
+    this.spinner = ora({ color: 'cyan', spinner: 'dots' });
+  }
+
+  setTotalSteps(total: number): void {
+    this.totalSteps = total;
   }
 
   start(label: string, total: number): void {
     this.label = label;
+    this.engineLabel = label;
     this.total = total;
     this.current = 0;
     this.spinner.start(this.formatMessage());
@@ -24,10 +34,14 @@ export class Progress {
   }
 
   succeed(message?: string): void {
-    this.spinner.succeed(message || `${this.label} ${chalk.dim(`[${this.current}/${this.total}]`)}`);
+    this.completedSteps++;
+    const pct = this.totalSteps > 0 ? Math.round((this.completedSteps / this.totalSteps) * 100) : 0;
+    const pctStr = this.totalSteps > 0 ? chalk.dim(` (${pct}% overall)`) : '';
+    this.spinner.succeed((message || this.label) + pctStr);
   }
 
   fail(message?: string): void {
+    this.completedSteps++;
     this.spinner.fail(message || `${this.label} failed`);
   }
 
@@ -41,7 +55,12 @@ export class Progress {
 
   private formatMessage(detail?: string): string {
     const bar = this.buildBar();
-    const msg = `${this.label} ${bar} ${this.current}/${this.total}`;
+    const pct = Math.round((this.current / Math.max(this.total, 1)) * 100);
+    const overallPct = this.totalSteps > 0
+      ? Math.round(((this.completedSteps + this.current / Math.max(this.total, 1)) / this.totalSteps) * 100)
+      : 0;
+    const overallStr = this.totalSteps > 0 ? chalk.dim(` [${overallPct}%]`) : '';
+    const msg = `${this.label} ${bar} ${this.current}/${this.total} ${chalk.dim(`(${pct}%)`)}${overallStr}`;
     return detail ? `${msg} — ${chalk.dim(detail)}` : msg;
   }
 

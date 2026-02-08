@@ -6,7 +6,7 @@ import { logger } from '../utils/logger.js';
 const RAW_EXTENSIONS = new Set([
   '.yml', '.yaml', '.json', '.toml', '.ini', '.cfg', '.conf',
   '.env', '.sh', '.bash', '.ps1', '.bat', '.cmd',
-  '.tf', '.hcl', '.dockerfile',
+  '.tf', '.hcl', '.dockerfile', '.mmd',
 ]);
 
 /**

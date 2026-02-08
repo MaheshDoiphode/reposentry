@@ -2,7 +2,7 @@ import { PromptContext, buildPrompt } from '../core/prompt-builder.js';
 
 export function systemArchitecturePrompt(ctx: PromptContext): string {
   return buildPrompt(
-    'Generate a Mermaid flowchart diagram showing the high-level system architecture. Show major components (services, databases, external APIs, message queues) and their relationships. Use flowchart TD syntax.',
+    'Generate ONLY a Mermaid flowchart diagram (flowchart TD syntax) showing the high-level system architecture. Show major components (frontend, backend services, databases, external APIs) and their connections with labeled arrows. Output the raw mermaid code starting with "flowchart TD". No text before or after the diagram.',
     ctx,
     'mermaid',
   );
@@ -10,7 +10,7 @@ export function systemArchitecturePrompt(ctx: PromptContext): string {
 
 export function dataFlowPrompt(ctx: PromptContext): string {
   return buildPrompt(
-    'Generate a Mermaid sequence diagram showing how data flows through the system. Show the request lifecycle from client through middleware, handlers, services, and database. Use sequenceDiagram syntax.',
+    'Generate ONLY a Mermaid sequence diagram (sequenceDiagram syntax) showing how data flows through the system. Show the request lifecycle: Client, Frontend, API/Backend, Auth, Database. Output the raw mermaid code starting with "sequenceDiagram". No text before or after the diagram.',
     ctx,
     'mermaid',
   );
@@ -18,7 +18,7 @@ export function dataFlowPrompt(ctx: PromptContext): string {
 
 export function dependencyGraphPrompt(ctx: PromptContext): string {
   return buildPrompt(
-    'Generate a Mermaid flowchart showing the module/package dependency graph. Show which modules import from which other modules. Use flowchart LR syntax. Keep it readable — group related modules.',
+    'Generate ONLY a Mermaid flowchart (flowchart LR syntax) showing the module/package dependency graph based on the import structure. Show which modules import from which other modules. Group related modules. Output the raw mermaid code starting with "flowchart LR". No text before or after the diagram.',
     ctx,
     'mermaid',
   );
@@ -26,7 +26,7 @@ export function dependencyGraphPrompt(ctx: PromptContext): string {
 
 export function erDiagramPrompt(ctx: PromptContext): string {
   return buildPrompt(
-    'Generate a Mermaid ER diagram showing database tables/models, their columns, and relationships (one-to-many, many-to-many). Use erDiagram syntax.',
+    'Generate ONLY a Mermaid ER diagram (erDiagram syntax) showing database tables/models, their columns with types, and relationships (one-to-many, many-to-many). Output the raw mermaid code starting with "erDiagram". No text before or after the diagram.',
     ctx,
     'mermaid',
   );
@@ -34,7 +34,7 @@ export function erDiagramPrompt(ctx: PromptContext): string {
 
 export function apiFlowPrompt(ctx: PromptContext): string {
   return buildPrompt(
-    'Generate a Mermaid sequence diagram showing the API request flow: client → middleware chain → auth → validation → handler → service → database → response. Use sequenceDiagram syntax.',
+    'Generate ONLY a Mermaid sequence diagram (sequenceDiagram syntax) showing the API request flow: Client ->> API Gateway ->> Auth Middleware ->> Route Handler ->> Service Layer ->> Database. Show success and error paths. Output the raw mermaid code starting with "sequenceDiagram". No text before or after the diagram.',
     ctx,
     'mermaid',
   );

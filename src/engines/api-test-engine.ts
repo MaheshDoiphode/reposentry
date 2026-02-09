@@ -61,17 +61,30 @@ export async function runAPITestEngine(
 
   progress.succeed('API Testing Engine');
 
-  // Score based on existing tests and routes
-  let score = 30;
+  // Score based on existing test coverage quality
+  let score = 10; // base
   if (testFiles.length > 0) score += 20;
-  if (testFiles.length > 5) score += 15;
+  if (testFiles.length > 5) score += 10;
   if (testFiles.length > 10) score += 10;
-  const testedRouteRatio = input.routes.length > 0 ? testFiles.length / input.routes.length : 0.5;
-  score += Math.round(testedRouteRatio * 25);
-  score = Math.min(100, score);
+  if (testFiles.length > 20) score += 10;
+
+  // Route coverage ratio (if routes exist, penalize low test coverage)
+  if (input.routes.length > 0) {
+    const ratio = Math.min(testFiles.length / input.routes.length, 1);
+    score += Math.round(ratio * 30);
+    if (ratio < 0.3) score -= 10; // very low test-to-route ratio
+  } else {
+    // No routes detected — score purely on test file count
+    score += Math.min(testFiles.length * 3, 20);
+  }
+
+  // Penalize zero tests
+  if (testFiles.length === 0) score -= 5;
+
+  score = Math.max(0, Math.min(100, score));
 
   return {
     score,
-    details: `${input.routes.length} routes detected, ${testFiles.length} existing test files`,
+    details: `${testFiles.length} test files, ${input.routes.length} routes, coverage ratio: ${input.routes.length > 0 ? Math.round(testFiles.length / input.routes.length * 100) + '%' : 'N/A'}`,
   };
 }

@@ -81,14 +81,24 @@ RepoSentry is an intelligent tool that automatically analyzes your repository an
 
 ### Installation
 
-#### Global Installation (CLI)
+#### From Source (recommended)
 ```bash
-npm install -g reposentry
+git clone https://github.com/MaheshDoiphode/reposentry.git
+cd reposentry
+npm install
+npm run build
+npm link
 ```
 
-#### As a Project Dependency
+You can now run:
 ```bash
-npm install --save-dev reposentry
+reposentry --help
+```
+
+#### From npm (optional)
+If/when published to npm, you can install globally:
+```bash
+npm install -g reposentry
 ```
 
 #### Requirements
@@ -115,10 +125,12 @@ reposentry analyze
 ```
 
 This generates a complete analysis in the `.reposentry/` directory with:
-- `DOCUMENTATION.md` - API & code documentation
-- `ARCHITECTURE.md` - System design & diagrams
-- `SECURITY_AUDIT.md` - Security findings
-- `CI_PIPELINE.yml` - GitHub Actions workflow
+- `README.md`, `API.md`, `SETUP.md`, `CONTRIBUTING.md` - Documentation suite
+- `ARCHITECTURE.md` + diagrams in `diagrams/` - Architecture diagrams
+- `security/SECURITY_AUDIT.md` + `security/VULNERABILITY_REPORT.md` - Security audit
+- `infrastructure/` - CI/CD and infrastructure suggestions
+- `testing/api-collection.json` + `testing/API_TESTS.md` - API testing assets
+- `HEALTH_REPORT.md` + `analysis.json` - Health score + machine-readable summary
 - `API_TESTS.json` - Test collection
 - `PERFORMANCE_REPORT.md` - Performance insights
 - `TEAM_GUIDELINES.md` - Collaboration templates
@@ -281,31 +293,27 @@ Generates human-readable reports with:
 
 ### HTML
 
-Interactive reports with styling and navigation.
+Exports a static HTML mirror of the generated reports under `.reposentry/html/`.
 
 ```bash
 reposentry analyze --format html
 ```
 
 Includes:
-- Responsive design
-- Dark/light mode
-- Interactive diagrams
-- Search functionality
+- A simple `index.html` file list
+- Mermaid diagram rendering for `.mmd` + mermaid fences
 
 ### JSON
 
-Machine-readable format for automation.
+Machine-readable export for automation.
 
 ```bash
 reposentry analyze --format json
 ```
 
 Contains:
-- Structured analysis data
-- Metrics and scores
-- Actionable recommendations
-- CI/CD automation ready
+- `.reposentry/bundle.json` with all generated files embedded (path + content)
+- `.reposentry/analysis.json` with scores/grades (via the health engine)
 
 ---
 
@@ -315,13 +323,13 @@ RepoSentry includes specialized engines for different aspects:
 
 | Engine | Purpose | Output |
 |--------|---------|--------|
-| **docs-engine** | Generate API documentation | `DOCUMENTATION.md` |
-| **architecture-engine** | Visualize system design | `ARCHITECTURE.md` (with Mermaid diagrams) |
-| **security-engine** | Security scanning & threat modeling | `SECURITY_AUDIT.md` |
-| **ci-engine** | Generate CI/CD pipelines | `.github/workflows/*.yml` |
-| **api-test-engine** | Create test collections | `API_TESTS.json` |
-| **performance-engine** | Detect anti-patterns | `PERFORMANCE_REPORT.md` |
-| **team-engine** | Collaboration templates | `TEAM_GUIDELINES.md` |
+| **docs-engine** | Generate documentation suite | `README.md`, `API.md`, `SETUP.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `FAQ.md` |
+| **architecture-engine** | Visualize system design | `ARCHITECTURE.md` + `diagrams/*.mmd` |
+| **security-engine** | Security scanning & threat modeling | `security/SECURITY_AUDIT.md`, `security/VULNERABILITY_REPORT.md`, `security/threat-model.mmd`, ... |
+| **ci-engine** | CI/CD + infra suggestions | `infrastructure/ci.yml`, `infrastructure/Dockerfile.suggested`, ... |
+| **api-test-engine** | Create test collections | `testing/API_TESTS.md`, `testing/api-collection.json`, `testing/api-tests.sh`, ... |
+| **performance-engine** | Detect anti-patterns | `performance/PERFORMANCE_AUDIT.md` + `performance/performance-score.json` |
+| **team-engine** | Collaboration templates | `team/PR_TEMPLATE.md`, `team/issue-templates/*`, `team/CODEOWNERS`, ... |
 | **health-engine** | Overall health assessment | `HEALTH_REPORT.md` + `analysis.json` |
 
 Run specific engines:
@@ -333,8 +341,8 @@ reposentry analyze --docs
 # Documentation + Architecture
 reposentry analyze --docs --architecture
 
-# Everything except API tests
-reposentry analyze --ignore-api-tests
+# Override config and run everything
+reposentry analyze --all
 ```
 
 ---

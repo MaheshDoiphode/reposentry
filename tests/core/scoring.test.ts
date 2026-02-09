@@ -51,6 +51,28 @@ describe('scoring', () => {
       ];
       expect(calculateOverallScore(categories)).toBe(79);
     });
+
+    it('should apply higher weight to Security category', () => {
+      // Security weight = 2.0, others default to 1.0
+      const categories: ScoreCategory[] = [
+        { name: 'Documentation', score: 90, grade: 'A-', details: '' },
+        { name: 'Security', score: 40, grade: 'F', details: '' },
+      ];
+      // Weighted: (90*1.0 + 40*2.0) / (1.0+2.0) = 170/3 = 56.67 → 57
+      const result = calculateOverallScore(categories);
+      expect(result).toBe(57);
+      // Without weights it would be (90+40)/2 = 65
+    });
+
+    it('should weigh Testing higher than Collaboration', () => {
+      const categories: ScoreCategory[] = [
+        { name: 'Testing', score: 30, grade: 'F', details: '' },       // weight 1.5
+        { name: 'Collaboration', score: 90, grade: 'A-', details: '' }, // weight 0.8
+      ];
+      // Weighted: (30*1.5 + 90*0.8) / (1.5+0.8) = (45+72)/2.3 = 50.87 → 51
+      const result = calculateOverallScore(categories);
+      expect(result).toBe(51);
+    });
   });
 
   describe('clampScore', () => {

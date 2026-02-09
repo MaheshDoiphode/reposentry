@@ -23,6 +23,7 @@ import { runPerformanceEngine } from '../engines/performance-engine.js';
 import { runTeamEngine } from '../engines/team-engine.js';
 import { runHealthEngine } from '../engines/health-engine.js';
 import { ScoreCategory, calculateGrade } from '../utils/scoring.js';
+import { getCliVersion } from '../utils/version.js';
 
 export interface AnalyzeOptions {
   output: string;
@@ -56,7 +57,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
 
   // Banner
   const banner = boxen(
-    `${chalk.bold.cyan('RepoSentry')} ${chalk.dim('v0.1.0')}\n${chalk.dim('AI-Powered Codebase Intelligence Platform')}`,
+    `${chalk.bold.cyan('RepoSentry')} ${chalk.dim(`v${getCliVersion()}`)}\n${chalk.dim('AI-Powered Codebase Intelligence Platform')}`,
     { padding: 1, borderColor: 'cyan', borderStyle: 'round' },
   );
   console.log(banner);
@@ -241,4 +242,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
     );
     console.log(summaryBox);
   }
+
+  // ─── Phase 5: Finalize optional exports ───
+  await outputManager.finalize();
 }

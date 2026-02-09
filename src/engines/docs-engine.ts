@@ -56,14 +56,19 @@ export async function runDocsEngine(
 
   progress.succeed('Documentation Engine');
 
-  // Calculate score
-  let score = 40; // base score for generating docs
-  score += filesGenerated * 10;
-  if (input.hasReadme) score += 5;
-  score = Math.min(100, score);
+  // Score based on what the project already had (not what we generated)
+  let score = 20; // base: project exists
+  if (input.hasReadme) score += 25; // existing README is a big signal
+  if (input.routes.length > 0) score += 10; // has documented API routes
+  if (input.recentCommits.length > 3) score += 10; // active development
+  if (input.tags.length > 0) score += 15; // versioned releases
+  // Penalize if no existing docs were found
+  if (!input.hasReadme) score -= 10;
+  if (input.recentCommits.length === 0) score -= 5;
+  score = Math.max(0, Math.min(100, score));
 
   return {
     score,
-    details: `${filesGenerated} documentation files generated`,
+    details: `README: ${input.hasReadme ? 'yes' : 'missing'}, ${input.routes.length} routes, ${input.tags.length} tags, ${input.recentCommits.length} recent commits`,
   };
 }

@@ -98,16 +98,33 @@ export async function runSecurityEngine(
 
   progress.succeed('Security Engine');
 
-  // Score calculation
+  // Score calculation — stricter penalties
   const highCount = quickFindings.filter(f => f.startsWith('[High]')).length;
   const medCount = quickFindings.filter(f => f.startsWith('[Medium]')).length;
-  let score = 100 - (highCount * 15) - (medCount * 5);
-  if (!input.hasGitignore) score -= 10;
-  if (input.hasEnvFile) score -= 10;
+  const lowCount = quickFindings.filter(f => f.startsWith('[Low]')).length;
+
+  let score = 100;
+  score -= highCount * 20;   // High = -20 each (hardcoded secrets, SQL injection, etc.)
+  score -= medCount * 10;    // Medium = -10 each (eval, CORS, MD5, etc.)
+  score -= lowCount * 3;     // Low = -3 each (console.log, etc.)
+
+  // Environment & config penalties
+  if (!input.hasGitignore) score -= 15;  // no .gitignore is a real risk
+  if (input.hasEnvFile) score -= 10;     // .env committed to repo
+
+  // Also parse AI vulnerability report for additional severity signals
+  const vulnLower = vulnResult.toLowerCase();
+  const aiHighMatches = (vulnLower.match(/\bcritical\b|\bhigh\s*severity\b|\bhigh\s*risk\b/g) || []).length;
+  const aiMedMatches = (vulnLower.match(/\bmedium\s*severity\b|\bmedium\s*risk\b|\bmoderate\b/g) || []).length;
+  score -= aiHighMatches * 5;  // AI-identified critical/high findings
+  score -= aiMedMatches * 2;   // AI-identified medium findings
+
   score = Math.max(0, Math.min(100, score));
+
+  const totalFindings = quickFindings.length + aiHighMatches + aiMedMatches;
 
   return {
     score,
-    details: `${quickFindings.length} pattern-based findings (${highCount} high, ${medCount} medium)`,
+    details: `${quickFindings.length} pattern findings (${highCount}H/${medCount}M/${lowCount}L) + ${aiHighMatches + aiMedMatches} AI findings | .gitignore: ${input.hasGitignore ? 'yes' : 'NO'} | .env committed: ${input.hasEnvFile ? 'YES' : 'no'}`,
   };
 }

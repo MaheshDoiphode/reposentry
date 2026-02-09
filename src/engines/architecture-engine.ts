@@ -73,8 +73,21 @@ export async function runArchitectureEngine(
 
   progress.succeed('Architecture Engine');
 
+  // Score based on actual project structure quality
+  let score = 30; // base
+  if (input.imports.length > 0) score += 15; // has module structure
+  if (input.models.length > 0) score += 15; // has data models
+  if (input.routes.length > 0) score += 15; // has API layer
+  // Separation of concerns signal
+  const uniqueDirs = new Set(input.imports.map(i => i.file.split('/')[0]));
+  if (uniqueDirs.size >= 3) score += 10; // multi-directory structure
+  if (uniqueDirs.size >= 5) score += 5; // well-organized
+  // Penalize monolithic projects
+  if (input.imports.length === 0 && input.routes.length === 0) score -= 10;
+  score = Math.max(0, Math.min(100, score));
+
   return {
-    score: 85,
-    details: `${diagrams.length} diagrams + architecture document generated`,
+    score,
+    details: `${input.imports.length} imports, ${input.models.length} models, ${input.routes.length} routes, ${uniqueDirs.size} top-level dirs`,
   };
 }

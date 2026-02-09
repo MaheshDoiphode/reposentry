@@ -23,8 +23,27 @@ export function calculateGrade(score: number): string {
 
 export function calculateOverallScore(categories: ScoreCategory[]): number {
   if (categories.length === 0) return 0;
-  const total = categories.reduce((sum, c) => sum + c.score, 0);
-  return Math.round(total / categories.length);
+
+  // Weighted scoring — security and testing carry more weight
+  const weights: Record<string, number> = {
+    'Security': 2.0,
+    'Testing': 1.5,
+    'CI/CD': 1.2,
+    'Documentation': 1.0,
+    'Architecture': 1.0,
+    'Performance': 1.2,
+    'Collaboration': 0.8,
+  };
+
+  let weightedSum = 0;
+  let totalWeight = 0;
+  for (const c of categories) {
+    const w = weights[c.name] ?? 1.0;
+    weightedSum += c.score * w;
+    totalWeight += w;
+  }
+
+  return Math.round(weightedSum / totalWeight);
 }
 
 export function clampScore(score: number): number {

@@ -74,9 +74,12 @@ export async function runPerformanceEngine(
 
   progress.succeed('Performance Engine');
 
-  // Calculate score
-  let score = 90 - (quickFindings.length * 3);
-  score = Math.max(20, Math.min(100, score));
+  // Calculate score — stricter per-finding penalty
+  let score = 70; // base: reasonable default
+  score -= quickFindings.length * 5; // each anti-pattern costs more
+  // Bonus for clean projects
+  if (quickFindings.length === 0) score = 95;
+  score = Math.max(10, Math.min(100, score));
 
   return {
     score,

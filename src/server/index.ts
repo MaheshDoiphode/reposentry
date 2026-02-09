@@ -1,7 +1,25 @@
 import express from 'express';
-import { resolve, join, extname } from 'node:path';
+import { resolve, join, extname, relative, isAbsolute, sep } from 'node:path';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { marked } from 'marked';
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Prevent raw HTML inside markdown from turning into executable HTML.
+// This is especially important if you run RepoSentry on untrusted repos.
+const safeRenderer = new marked.Renderer();
+(safeRenderer as any).html = (token: any) => {
+  const raw = token?.text ?? token?.raw ?? '';
+  return escapeHtml(String(raw));
+};
+marked.use({ renderer: safeRenderer });
 
 export interface ServerOptions {
   port: number;
@@ -1865,7 +1883,15 @@ export async function startServer(options: ServerOptions): Promise<void> {
     sections.get(dir)!.push(file);
   }
 
-  let sidebarHtml = '';
+  let sidebarHtml = `<div class="sidebar-section"><div class="sidebar-section-label">⚡ Tools</div>
+    <a class="nav-item" href="/compare">
+      <span class="nav-icon">📊</span>
+      <span class="nav-text">
+        <span class="nav-text-name">Compare Scores</span>
+        <span class="nav-text-path">Score history &amp; comparison</span>
+      </span>
+    </a>
+  </div>`;
   for (const [section, sectionFiles] of sections) {
     const sectionTitle = sectionLabels[section] || ('📁 ' + section);
     sidebarHtml += `<div class="sidebar-section"><div class="sidebar-section-label">${sectionTitle}</div>`;
@@ -1895,7 +1921,14 @@ export async function startServer(options: ServerOptions): Promise<void> {
     // Express 5 returns wildcard params as an array of path segments
     const rawParam = req.params.filepath;
     const filePath = Array.isArray(rawParam) ? rawParam.join('/') : rawParam;
-    const fullPath = join(outputDir, filePath);
+    const fullPath = resolve(outputDir, filePath);
+
+    // Block path traversal (e.g., /view/../../secrets.txt)
+    const rel = relative(outputDir, fullPath);
+    if (rel.startsWith('..') || isAbsolute(rel) || rel.includes(`..${sep}`)) {
+      res.status(403).send(renderPage('Forbidden', '<h1>403 — Forbidden</h1>', sidebarHtml, files.length));
+      return;
+    }
 
     if (!existsSync(fullPath)) {
       res.status(404).send(renderPage('Not Found', '<h1>404 — File Not Found</h1>', sidebarHtml, files.length));
@@ -1921,6 +1954,162 @@ export async function startServer(options: ServerOptions): Promise<void> {
       const formatted = `<pre><code>${escaped}</code></pre>`;
       res.send(renderPage(fileName, formatted, sidebarHtml, files.length));
     }
+  });
+
+  app.get('/compare', (req, res) => {
+    const historyPath = join(outputDir, 'history.json');
+    if (!existsSync(historyPath)) {
+      res.send(renderPage('Compare', '<h1>No History</h1><p>Run <code>reposentry analyze</code> at least twice to compare scores.</p>', sidebarHtml, files.length));
+      return;
+    }
+
+    let history: Array<{
+      analyzedAt: string;
+      overallScore: number;
+      overallGrade: string;
+      categories: Array<{ name: string; score: number; grade: string; details: string }>;
+    }>;
+    try {
+      history = JSON.parse(readFileSync(historyPath, 'utf-8'));
+    } catch {
+      res.send(renderPage('Compare', '<h1>Error</h1><p>Could not parse history.json.</p>', sidebarHtml, files.length));
+      return;
+    }
+
+    if (history.length < 2) {
+      res.send(renderPage('Compare', '<h1>Not Enough Data</h1><p>Run <code>reposentry analyze</code> again to build history.</p>', sidebarHtml, files.length));
+      return;
+    }
+
+    const leftId = req.query.left ? parseInt(req.query.left as string, 10) : null;
+    const rightId = history.length; // always latest
+
+    // If no left selected, show picker
+    if (!leftId || isNaN(leftId) || leftId < 1 || leftId >= rightId) {
+      let rows = '';
+      for (let i = 0; i < history.length; i++) {
+        const e = history[i];
+        const id = i + 1;
+        const isLatest = i === history.length - 1;
+        const date = new Date(e.analyzedAt).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const gradeClass = e.overallScore >= 80 ? 'cmp-good' : e.overallScore >= 60 ? 'cmp-warn' : 'cmp-bad';
+        const cats = e.categories.map(c => '<span class="cmp-cat">' + c.name.substring(0, 4) + ':' + c.score + '</span>').join(' ');
+        if (isLatest) {
+          rows += '<tr class="cmp-latest"><td>' + id + '</td><td>' + date + '</td><td class="' + gradeClass + '">' + e.overallGrade + '</td><td class="' + gradeClass + '">' + e.overallScore + '</td><td>' + cats + '</td><td><span class="cmp-tag">latest</span></td></tr>';
+        } else {
+          rows += '<tr><td>' + id + '</td><td>' + date + '</td><td class="' + gradeClass + '">' + e.overallGrade + '</td><td class="' + gradeClass + '">' + e.overallScore + '</td><td>' + cats + '</td><td><a class="cmp-link" href="/compare?left=' + id + '">Compare</a></td></tr>';
+        }
+      }
+
+      const pickerHtml = `
+        <h1>📊 Score Comparison</h1>
+        <p>Select a previous run to compare against the latest (Run #${rightId}).</p>
+        <table class="cmp-table">
+          <thead><tr><th>ID</th><th>Date</th><th>Grade</th><th>Score</th><th>Categories</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <style>
+          .cmp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); overflow: hidden; margin-top: 20px; }
+          .cmp-table th { background: rgba(255,255,255,0.06); padding: 12px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: rgba(255,255,255,0.7); border-bottom: 1px solid rgba(255,255,255,0.10); }
+          .cmp-table td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; color: rgba(255,255,255,0.85); }
+          .cmp-table tr:last-child td { border-bottom: none; }
+          .cmp-table tr:hover td { background: rgba(255,255,255,0.03); }
+          .cmp-latest td { opacity: 0.5; }
+          .cmp-good { color: #34d399; font-weight: 700; }
+          .cmp-warn { color: #fbbf24; font-weight: 700; }
+          .cmp-bad { color: #fb7185; font-weight: 700; }
+          .cmp-cat { display: inline-block; font-family: var(--mono, monospace); font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 6px; padding: 2px 6px; margin: 1px 2px; }
+          .cmp-tag { font-size: 11px; background: rgba(99,102,241,0.25); border: 1px solid rgba(99,102,241,0.4); border-radius: 6px; padding: 3px 8px; color: rgba(255,255,255,0.7); }
+          .cmp-link { display: inline-block; padding: 6px 14px; border-radius: 8px; background: linear-gradient(135deg, rgba(99,102,241,0.8), rgba(34,211,238,0.6)); color: #fff; font-weight: 600; font-size: 12px; text-decoration: none; transition: transform 0.1s; }
+          .cmp-link:hover { transform: translateY(-1px); opacity: 0.9; }
+        </style>`;
+      res.send(renderPage('Compare Scores', pickerHtml, sidebarHtml, files.length));
+      return;
+    }
+
+    // Build side-by-side comparison
+    const older = history[leftId - 1];
+    const latest = history[rightId - 1];
+    const olderMap = new Map(older.categories.map(c => [c.name, c]));
+    const latestMap = new Map(latest.categories.map(c => [c.name, c]));
+    const allCats = [...new Set([...olderMap.keys(), ...latestMap.keys()])];
+
+    let catRows = '';
+    for (const cat of allCats) {
+      const o = olderMap.get(cat);
+      const l = latestMap.get(cat);
+      const scoreBefore = o ? o.score : 0;
+      const scoreAfter = l ? l.score : 0;
+      const diff = scoreAfter - scoreBefore;
+      const diffStr = diff > 0 ? '<span class="cmp-good">▲ +' + diff + '</span>' : diff < 0 ? '<span class="cmp-bad">▼ ' + diff + '</span>' : '<span style="opacity:.5">—</span>';
+      const barBefore = '<div class="cmp-bar"><div class="cmp-bar-fill" style="width:' + scoreBefore + '%;background:rgba(255,255,255,0.2)"></div></div>';
+      const barAfter = '<div class="cmp-bar"><div class="cmp-bar-fill" style="width:' + scoreAfter + '%;background:' + (scoreAfter >= 80 ? 'rgba(52,211,153,0.7)' : scoreAfter >= 60 ? 'rgba(251,191,36,0.7)' : 'rgba(251,113,133,0.7)') + '"></div></div>';
+
+      catRows += '<tr>' +
+        '<td style="font-weight:600">' + cat + '</td>' +
+        '<td>' + (o ? o.grade : '—') + '</td><td>' + scoreBefore + barBefore + '</td>' +
+        '<td>' + (l ? l.grade : '—') + '</td><td>' + scoreAfter + barAfter + '</td>' +
+        '<td style="text-align:center">' + diffStr + '</td>' +
+        '</tr>';
+    }
+
+    // Overall row
+    const overallDiff = latest.overallScore - older.overallScore;
+    const overallDiffStr = overallDiff > 0 ? '<span class="cmp-good">▲ +' + overallDiff + '</span>' : overallDiff < 0 ? '<span class="cmp-bad">▼ ' + overallDiff + '</span>' : '<span style="opacity:.5">—</span>';
+
+    const olderDate = new Date(older.analyzedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const latestDate = new Date(latest.analyzedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    const summaryEmoji = overallDiff > 0 ? '📈' : overallDiff < 0 ? '📉' : '➡️';
+    const summaryText = overallDiff > 0 ? 'Your codebase health improved!' : overallDiff < 0 ? 'Score decreased. Check categories above.' : 'No change in overall score.';
+    const summaryClass = overallDiff > 0 ? 'cmp-good' : overallDiff < 0 ? 'cmp-bad' : '';
+
+    const compareHtml = `
+      <h1>📊 Score Comparison: Run #${leftId} vs #${rightId}</h1>
+      <div class="cmp-summary ${summaryClass}">${summaryEmoji} ${summaryText} (${overallDiff > 0 ? '+' : ''}${overallDiff} points)</div>
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th rowspan="2" style="vertical-align:bottom">Category</th>
+            <th colspan="2" style="text-align:center;border-bottom:1px solid rgba(255,255,255,0.1)">Run #${leftId} — ${olderDate}</th>
+            <th colspan="2" style="text-align:center;border-bottom:1px solid rgba(255,255,255,0.1)">Run #${rightId} — ${latestDate}</th>
+            <th rowspan="2" style="text-align:center;vertical-align:bottom">Δ</th>
+          </tr>
+          <tr>
+            <th>Grade</th><th>Score</th>
+            <th>Grade</th><th>Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${catRows}
+          <tr class="cmp-overall">
+            <td style="font-weight:700">OVERALL</td>
+            <td>${older.overallGrade}</td><td>${older.overallScore}</td>
+            <td>${latest.overallGrade}</td><td>${latest.overallScore}</td>
+            <td style="text-align:center">${overallDiffStr}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:18px"><a class="cmp-link" href="/compare">← Back to history</a></p>
+      <style>
+        .cmp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); overflow: hidden; margin-top: 20px; }
+        .cmp-table th { background: rgba(255,255,255,0.06); padding: 10px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: rgba(255,255,255,0.7); border-bottom: 1px solid rgba(255,255,255,0.10); }
+        .cmp-table td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; color: rgba(255,255,255,0.85); }
+        .cmp-table tr:last-child td { border-bottom: none; }
+        .cmp-overall td { background: rgba(255,255,255,0.04); font-weight: 600; border-top: 2px solid rgba(255,255,255,0.15); }
+        .cmp-good { color: #34d399; font-weight: 700; }
+        .cmp-warn { color: #fbbf24; font-weight: 700; }
+        .cmp-bad { color: #fb7185; font-weight: 700; }
+        .cmp-bar { height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+        .cmp-bar-fill { height: 100%; border-radius: 3px; transition: width .3s ease; }
+        .cmp-summary { margin: 16px 0; padding: 14px 18px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); font-size: 15px; font-weight: 600; }
+        .cmp-summary.cmp-good { background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.25); }
+        .cmp-summary.cmp-bad { background: rgba(251,113,133,0.08); border-color: rgba(251,113,133,0.25); }
+        .cmp-link { display: inline-block; padding: 6px 14px; border-radius: 8px; background: linear-gradient(135deg, rgba(99,102,241,0.8), rgba(34,211,238,0.6)); color: #fff; font-weight: 600; font-size: 12px; text-decoration: none; transition: transform 0.1s; }
+        .cmp-link:hover { transform: translateY(-1px); opacity: 0.9; }
+      </style>`;
+
+    res.send(renderPage('Compare Scores', compareHtml, sidebarHtml, files.length));
   });
 
   app.listen(options.port, () => {

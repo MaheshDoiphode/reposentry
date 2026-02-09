@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { join } from 'node:path';
 import { detectConfigs } from '../../src/scanners/config-detector.js';
 
 describe('config-detector', () => {
@@ -20,8 +21,9 @@ describe('config-detector', () => {
     expect(result.hasDockerfile).toBe(false);
   });
 
-  it('should detect no CI config when no workflow files', () => {
-    const result = detectConfigs(rootDir, ['src/index.ts']);
+  it('should detect no CI config when no workflow files exist on disk', () => {
+    // Use a path that definitely has no .github/workflows/
+    const result = detectConfigs(join(rootDir, 'src'), ['src/index.ts']);
     expect(result.hasCIConfig).toBe(false);
   });
 

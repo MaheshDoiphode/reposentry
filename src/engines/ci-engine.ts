@@ -87,15 +87,22 @@ export async function runCIEngine(
 
   progress.succeed('CI/CD Engine');
 
-  let score = 50;
-  if (input.hasCIConfig) score += 25;
-  if (input.hasDockerfile) score += 10;
-  if (input.hasEnvExample) score += 10;
-  if (input.hasDockerCompose) score += 5;
-  score = Math.min(100, score);
+  // Score based on what the project already has (not what we generated)
+  let score = 15; // base: project exists
+  if (input.hasCIConfig) score += 35;      // CI pipeline is critical
+  if (input.hasDockerfile) score += 20;     // containerized
+  if (input.hasEnvExample) score += 15;     // env management
+  if (input.hasDockerCompose) score += 15;  // orchestration
+  score = Math.max(0, Math.min(100, score));
+
+  const missing: string[] = [];
+  if (!input.hasCIConfig) missing.push('CI pipeline');
+  if (!input.hasDockerfile) missing.push('Dockerfile');
+  if (!input.hasEnvExample) missing.push('.env.example');
+  if (!input.hasDockerCompose) missing.push('docker-compose');
 
   return {
     score,
-    details: `${generated.length} infrastructure files generated/audited`,
+    details: missing.length > 0 ? `Missing: ${missing.join(', ')}` : 'All CI/CD infrastructure present',
   };
 }

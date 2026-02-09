@@ -80,15 +80,23 @@ contact_links:
 
   progress.succeed('Team Engine');
 
-  let score = 20;
-  if (input.hasPRTemplate) score += 20;
-  if (input.hasIssueTemplates) score += 15;
-  if (input.hasCodeowners) score += 15;
-  score += 30; // generated templates
-  score = Math.min(100, score);
+  // Score based on what the project already has (not what we generated)
+  let score = 15; // base
+  if (input.hasPRTemplate) score += 25;
+  if (input.hasIssueTemplates) score += 20;
+  if (input.hasCodeowners) score += 20;
+  if (input.gitAnalysis.contributors.length > 1) score += 10; // multi-contributor
+  if (input.gitAnalysis.contributors.length > 3) score += 10; // active team
+
+  const missing: string[] = [];
+  if (!input.hasPRTemplate) missing.push('PR template');
+  if (!input.hasIssueTemplates) missing.push('issue templates');
+  if (!input.hasCodeowners) missing.push('CODEOWNERS');
+
+  score = Math.max(0, Math.min(100, score));
 
   return {
     score,
-    details: `8 collaboration files generated`,
+    details: missing.length > 0 ? `Missing: ${missing.join(', ')} | ${input.gitAnalysis.contributors.length} contributors` : `All collaboration files present | ${input.gitAnalysis.contributors.length} contributors`,
   };
 }

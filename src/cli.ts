@@ -309,15 +309,55 @@ async function runInteractiveMode(): Promise<void> {
   }
 
   if (choice === '10') {
-    console.log(chalk.bold('\n  AI model selection\n'));
-    console.log(chalk.dim('  Model support depends on your Copilot backend.'));
-    const selectedModel = (await ask(chalk.cyan('  Enter model name (or blank for default): '))).trim();
-    if (selectedModel) {
-      console.log(chalk.green(`\n  ✓ Model set to: ${selectedModel}`));
-      console.log(chalk.dim(`  Run: reposentry analyze --model ${selectedModel}\n`));
+    const { getAvailableModels, isCopilotAvailable } = await import('./core/copilot.js');
+
+    if (!isCopilotAvailable()) {
+      console.log(chalk.red('\n  ❌ No Copilot CLI detected. Install via: npm i -g @github/copilot\n'));
+      rl.close();
+      return;
+    }
+
+    console.log(chalk.bold('\n  🧠 Fetching available models from Copilot CLI...\n'));
+    const models = getAvailableModels();
+
+    if (models.length === 0) {
+      console.log(chalk.yellow('  Could not fetch models. Enter a model name manually.'));
+      const selectedModel = (await ask(chalk.cyan('\n  Enter model name (or blank for default): '))).trim();
+      if (selectedModel) {
+        console.log(chalk.green(`\n  ✓ Model set to: ${selectedModel}`));
+        console.log(chalk.dim(`  Run: reposentry analyze --model ${selectedModel}\n`));
+      } else {
+        console.log(chalk.dim('\n  Using backend default model.\n'));
+      }
+      rl.close();
+      return;
+    }
+
+    console.log(chalk.dim('  ─────────────────────────────────────────'));
+    for (let i = 0; i < models.length; i++) {
+      const num = (i + 1).toString().padStart(2, ' ');
+      const current = models[i] === 'claude-haiku-4.5' ? chalk.dim(' (current default)') : '';
+      console.log(`  ${chalk.cyan(num)}. ${models[i]}${current}`);
+    }
+    console.log(chalk.dim('  ─────────────────────────────────────────'));
+    console.log(chalk.dim(`\n  ${models.length} models available.`));
+
+    const input = (await ask(chalk.cyan(`\n  Select model (1-${models.length}) or name: `))).trim();
+
+    const idx = parseInt(input, 10);
+    let selectedModel: string;
+    if (!isNaN(idx) && idx >= 1 && idx <= models.length) {
+      selectedModel = models[idx - 1];
+    } else if (input) {
+      selectedModel = input;
     } else {
       console.log(chalk.dim('\n  Using backend default model.\n'));
+      rl.close();
+      return;
     }
+
+    console.log(chalk.green(`\n  ✓ Model set to: ${selectedModel}`));
+    console.log(chalk.dim(`  Run: reposentry analyze --model ${selectedModel}\n`));
     rl.close();
     return;
   }

@@ -33,14 +33,30 @@ export function setCopilotModel(model: string): void {
   globalModel = model;
 }
 
-/** Get available models from copilot CLI */
+/** Get available models from copilot CLI (parsed from --help output) */
 export function getAvailableModels(): string[] {
-  return [
-    'claude-sonnet-4.5', 'claude-haiku-4.5', 'claude-opus-4.6', 'claude-opus-4.6-fast',
-    'claude-opus-4.5', 'claude-sonnet-4', 'gemini-3-pro-preview',
-    'gpt-5.2-codex', 'gpt-5.2', 'gpt-5.1-codex-max', 'gpt-5.1-codex', 'gpt-5.1',
-    'gpt-5', 'gpt-5.1-codex-mini', 'gpt-5-mini', 'gpt-4.1',
-  ];
+  const backend = detectBackend();
+  if (backend === 'none') return [];
+
+  try {
+    const cmd = backend === 'copilot-cli' ? 'copilot' : 'gh';
+    const args = backend === 'copilot-cli' ? ['-h'] : ['copilot', '-h'];
+    const result = spawnSync(cmd, args, {
+      encoding: 'utf-8',
+      timeout: 10000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    const output = (result.stdout || '') + (result.stderr || '');
+    // Match the --model line and extract all quoted model names from choices
+    const modelSection = output.match(/--model[\s\S]*?\(choices:\s*([\s\S]*?)\)/);
+    if (modelSection) {
+      const models = [...modelSection[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
+      if (models.length > 0) return models;
+    }
+  } catch { /* fall through to empty */ }
+
+  return [];
 }
 
 /** Detect which Copilot CLI backend is available */

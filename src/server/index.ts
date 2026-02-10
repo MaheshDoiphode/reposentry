@@ -1258,7 +1258,7 @@ function renderPage(title: string, content: string, sidebar: string, fileCount: 
         </div>
         <div class="sidebar-wordmark">
           <strong>RepoSentry</strong>
-          <small>Documentation Preview</small>
+          <small>Codebase Intelligence</small>
         </div>
       </div>
 
@@ -1434,11 +1434,18 @@ function renderPage(title: string, content: string, sidebar: string, fileCount: 
 
     /* ── Sidebar Active State ── */
     const currentPath = window.location.pathname;
+    const sidebarNavEl = $('#sidebarNav');
     $$('.nav-item').forEach(a => {
       if (a.getAttribute('href') === currentPath) {
         a.classList.add('active');
+        // Only scroll if the active item is outside the visible sidebar area
         requestAnimationFrame(() => {
-          a.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          if (!sidebarNavEl) return;
+          const navRect = sidebarNavEl.getBoundingClientRect();
+          const itemRect = a.getBoundingClientRect();
+          if (itemRect.top < navRect.top || itemRect.bottom > navRect.bottom) {
+            a.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+          }
         });
       }
     });

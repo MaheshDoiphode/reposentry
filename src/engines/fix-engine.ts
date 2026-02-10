@@ -6,6 +6,7 @@ import { detectLanguages } from '../scanners/language-detector.js';
 import { detectRoutes } from '../scanners/route-detector.js';
 import { PromptContext, buildFileTree } from '../core/prompt-builder.js';
 import { buildDirectoryTree } from '../scanners/file-scanner.js';
+import { isGitRepo } from '../utils/git.js';
 
 export type Priority = 'P0' | 'P1' | 'P2';
 export type FixCategory = 'Documentation' | 'CI/CD' | 'Security' | 'Testing' | 'Collaboration' | 'Infrastructure';
@@ -326,11 +327,15 @@ export async function scanForFixableIssues(rootDir: string, ignore: string[]): P
     });
   }
 
+  // Filter out Collaboration issues if not a git repo
+  const isGit = isGitRepo(rootDir);
+  const filtered = isGit ? issues : issues.filter(i => i.category !== 'Collaboration');
+
   // Sort: P0 first, then P1, then P2
   const priorityOrder: Record<Priority, number> = { P0: 0, P1: 1, P2: 2 };
-  issues.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  filtered.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
-  return { issues, context, configInfo };
+  return { issues: filtered, context, configInfo };
 }
 
 function resolveProjectName(rootDir: string): string {

@@ -127,6 +127,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
   const categories: ScoreCategory[] = [];
 
   // Count total engines to run for overall progress
+  const skipTeam = (runAll || opts.team) && !isGit;
   const engines = [
     runAll || opts.docs,
     runAll || opts.architecture,
@@ -134,7 +135,7 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
     runAll || opts.ci,
     runAll || opts.apiTests,
     runAll || opts.performance,
-    runAll || opts.team,
+    (runAll || opts.team) && !skipTeam,
     runAll || opts.health,
   ].filter(Boolean).length;
 
@@ -198,12 +199,16 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
   }
 
   if (runAll || opts.team) {
-    const result = await runTeamEngine(
-      { context, gitAnalysis, hasPRTemplate: configInfo.hasPRTemplate, hasIssueTemplates: configInfo.hasIssueTemplates, hasCodeowners: configInfo.hasCodeowners },
-      outputManager,
-      progress,
-    );
-    categories.push({ name: 'Collaboration', score: result.score, grade: calculateGrade(result.score), details: result.details });
+    if (!isGit) {
+      logger.warn('Skipping Collaboration engine — not a Git repository.');
+    } else {
+      const result = await runTeamEngine(
+        { context, gitAnalysis, hasPRTemplate: configInfo.hasPRTemplate, hasIssueTemplates: configInfo.hasIssueTemplates, hasCodeowners: configInfo.hasCodeowners },
+        outputManager,
+        progress,
+      );
+      categories.push({ name: 'Collaboration', score: result.score, grade: calculateGrade(result.score), details: result.details });
+    }
   }
 
   // Always run health if doing full analysis or explicitly requested

@@ -1,10 +1,11 @@
 {
   "name": "reposentry",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "AI-powered codebase intelligence platform (docs + architecture + security + CI + tests + performance)",
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "start": "node dist/index.js"
@@ -13,8 +14,15 @@
     "type": "git",
     "url": "git+https://github.com/MaheshDoiphode/reposentry.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "cli",
+    "documentation",
+    "architecture",
+    "security",
+    "code-analysis",
+    "github-copilot"
+  ],
+  "author": "Mahesh Doiphode",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -23,6 +31,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18"
   },
@@ -30,7 +41,6 @@
     "url": "https://github.com/MaheshDoiphode/reposentry/issues"
   },
   "homepage": "https://github.com/MaheshDoiphode/reposentry#readme",
-  "private": true,
   "dependencies": {
     "boxen": "^8.0.1",
     "chalk": "^5.6.2",

@@ -253,6 +253,303 @@ ${chalk.bold('Examples:')}
     });
 
   program
+    .command('fix')
+    .description('Auto-fix detected issues in your project (creates missing files)')
+    .option('-o, --output <dir>', 'RepoSentry output directory', '.reposentry')
+    .option('-m, --model <model>', 'AI model to use')
+    .option('--all', 'Fix all issues without prompting', false)
+    .option('--dry-run', 'Show what would be fixed without making changes', false)
+    .action(async (options) => {
+      const { resolve: resolvePath } = await import('node:path');
+      const readline = await import('node:readline');
+      const { scanForFixableIssues, CI_PROVIDERS, buildDeployGuidePrompt } = await import('./engines/fix-engine.js');
+      const { askCopilotWithWrite, isCopilotAvailable, setCopilotModel } = await import('./core/copilot.js');
+      const { createProgress } = await import('./core/progress.js');
+
+      const cwd = process.cwd();
+
+      // Banner
+      console.log(`\n${chalk.bold.cyan('🛡️  RepoSentry Fix')} ${chalk.dim('— Auto-fix detected issues')}\n`);
+
+      if (!isCopilotAvailable()) {
+        console.error(chalk.red('  ❌ Copilot CLI not found. Install: npm i -g @github/copilot'));
+        process.exit(1);
+      }
+
+      if (options.model) setCopilotModel(options.model);
+
+      // Scan for issues
+      console.log(chalk.dim('  Scanning project for fixable issues...\n'));
+      const { issues, context } = await scanForFixableIssues(cwd, ['node_modules', 'dist', '.git']);
+
+      if (issues.length === 0) {
+        console.log(chalk.green('  ✅ No fixable issues found! Your project looks great.\n'));
+        return;
+      }
+
+      // Display issues grouped by priority
+      const priorityColors: Record<string, (s: string) => string> = {
+        P0: chalk.red.bold,
+        P1: chalk.yellow.bold,
+        P2: chalk.dim,
+      };
+      const priorityLabels: Record<string, string> = {
+        P0: '🔴 Critical',
+        P1: '🟡 Important',
+        P2: '🔵 Nice-to-have',
+      };
+
+      console.log(chalk.bold(`  Found ${issues.length} fixable issue${issues.length > 1 ? 's' : ''}:\n`));
+      console.log(chalk.dim('  ─────────────────────────────────────────────────────────────────────'));
+      console.log(`  ${chalk.bold('#'.padEnd(4))}${chalk.bold('Pri'.padEnd(6))}${chalk.bold('Category'.padEnd(18))}${chalk.bold('Issue')}`);
+      console.log(chalk.dim('  ─────────────────────────────────────────────────────────────────────'));
+
+      for (let i = 0; i < issues.length; i++) {
+        const issue = issues[i];
+        const color = priorityColors[issue.priority] || chalk.dim;
+        const num = (i + 1).toString().padEnd(4);
+        console.log(`  ${chalk.cyan(num)}${color(issue.priority.padEnd(6))}${issue.category.padEnd(18)}${issue.title}`);
+        console.log(chalk.dim(`      ${issue.description}`));
+      }
+
+      console.log(chalk.dim('  ─────────────────────────────────────────────────────────────────────'));
+
+      const p0Count = issues.filter(i => i.priority === 'P0').length;
+      const p1Count = issues.filter(i => i.priority === 'P1').length;
+      const p2Count = issues.filter(i => i.priority === 'P2').length;
+      console.log(chalk.dim(`\n  ${priorityLabels.P0}: ${p0Count}  ${priorityLabels.P1}: ${p1Count}  ${priorityLabels.P2}: ${p2Count}\n`));
+
+      if (options.dryRun) {
+        console.log(chalk.dim('  --dry-run: No changes made.\n'));
+        return;
+      }
+
+      // Ask mode
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      const ask = (q: string): Promise<string> => new Promise(r => rl.question(q, r));
+
+      let mode: 'all' | 'step' | 'select' = 'step';
+      if (options.all) {
+        mode = 'all';
+      } else {
+        console.log(chalk.bold('  How would you like to proceed?\n'));
+        console.log('  1. 🚀 Fix all issues automatically');
+        console.log('  2. 🔄 Step-by-step (confirm each fix)');
+        console.log('  3. 🎯 Select specific issues to fix');
+        console.log('  0. ❌ Cancel\n');
+
+        const choice = (await ask(chalk.cyan('  Select mode (0-3): '))).trim();
+        if (choice === '0') {
+          console.log(chalk.dim('\n  Cancelled.\n'));
+          rl.close();
+          return;
+        }
+        mode = choice === '1' ? 'all' : choice === '3' ? 'select' : 'step';
+      }
+
+      // Determine which issues to fix
+      let toFix = [...issues];
+
+      if (mode === 'select') {
+        const input = (await ask(chalk.cyan(`  Enter issue numbers to fix (e.g., 1,3,5): `))).trim();
+        const nums = input.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= issues.length);
+        if (nums.length === 0) {
+          console.log(chalk.red('\n  No valid issues selected.\n'));
+          rl.close();
+          return;
+        }
+        toFix = nums.map(n => issues[n - 1]);
+      }
+
+      // CI/CD provider selection if fixing CI
+      const ciIssue = toFix.find(i => i.id === 'ci-pipeline');
+      if (ciIssue) {
+        console.log(chalk.bold('\n  🔧 CI/CD Provider Selection\n'));
+        for (let i = 0; i < CI_PROVIDERS.length; i++) {
+          const rec = i === 0 ? chalk.dim(' (Recommended)') : '';
+          console.log(`  ${chalk.cyan((i + 1).toString().padStart(2))}. ${CI_PROVIDERS[i].name}${rec}`);
+        }
+        const ciChoice = (await ask(chalk.cyan(`\n  Select CI provider (1-${CI_PROVIDERS.length}): `))).trim();
+        const ciIdx = parseInt(ciChoice, 10) - 1;
+        const provider = CI_PROVIDERS[ciIdx >= 0 && ciIdx < CI_PROVIDERS.length ? ciIdx : 0];
+        context.ciProvider = provider.name;
+        ciIssue.files = [provider.file];
+        console.log(chalk.green(`  ✓ Selected: ${provider.name}\n`));
+      }
+
+      rl.close();
+
+      // Execute fixes
+      console.log(chalk.bold(`\n  Fixing ${toFix.length} issue${toFix.length > 1 ? 's' : ''}...\n`));
+      console.log(chalk.dim('  ⏳ Each fix may take 30-60s — Copilot is generating project-aware files.\n'));
+
+      const progress = createProgress();
+      progress.setTotalSteps(toFix.length);
+
+      let fixed = 0;
+      let failed = 0;
+      const fixResults: Array<{ issue: typeof toFix[0]; success: boolean; output: string; filesCreated: string[] }> = [];
+
+      for (const issue of toFix) {
+        if (mode === 'step') {
+          const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
+          const answer = await new Promise<string>(r => rl2.question(
+            chalk.cyan(`  Fix "${issue.title}"? (y/n/skip): `), r,
+          ));
+          rl2.close();
+
+          if (answer.trim().toLowerCase() !== 'y') {
+            progress.increment(`Skipped: ${issue.title}`);
+            fixResults.push({ issue, success: false, output: 'Skipped by user', filesCreated: [] });
+            continue;
+          }
+        }
+
+        progress.increment(issue.title);
+        const prompt = issue.promptBuilder(context);
+
+        console.log(chalk.dim(`\n     🤖 Asking Copilot to fix: ${issue.title}`));
+        console.log(chalk.dim(`     📁 Expected files: ${issue.files.length > 0 ? issue.files.join(', ') : '(Copilot decides)'}`));
+
+        try {
+          const { existsSync: checkExists } = await import('node:fs');
+          const { join: joinPath } = await import('node:path');
+
+          const result = await askCopilotWithWrite(prompt, { projectDir: cwd, timeoutMs: 240000 });
+          const isFailed = result.startsWith('[Fix failed');
+
+          // Verify which files were actually created
+          const filesCreated: string[] = [];
+          for (const f of issue.files) {
+            const fullPath = joinPath(cwd, f);
+            if (checkExists(fullPath)) {
+              filesCreated.push(f);
+            }
+          }
+
+          // Also check Copilot output for file paths it mentions
+          const mentionedPaths = result.match(/(?:created|wrote|written|writing)\s+[`"']?([^\s`"']+\.\w+)/gi) || [];
+          for (const match of mentionedPaths) {
+            const pathMatch = match.match(/[`"']?([^\s`"']+\.\w+)/);
+            if (pathMatch) {
+              const mentioned = pathMatch[1];
+              const fullPath = joinPath(cwd, mentioned);
+              if (checkExists(fullPath) && !filesCreated.includes(mentioned)) {
+                filesCreated.push(mentioned);
+              }
+            }
+          }
+
+          if (isFailed) {
+            failed++;
+            console.log(chalk.red(`     ❌ Failed: ${result.slice(0, 120)}`));
+            fixResults.push({ issue, success: false, output: result.slice(0, 200), filesCreated });
+          } else if (filesCreated.length > 0) {
+            fixed++;
+            for (const f of filesCreated) {
+              console.log(chalk.green(`     ✅ Created: ${f}`));
+            }
+            fixResults.push({ issue, success: true, output: result.slice(0, 200), filesCreated });
+          } else if (issue.files.length === 0) {
+            // Issues where Copilot decides the files (test scaffold, etc.)
+            fixed++;
+            console.log(chalk.green(`     ✅ Copilot applied fix`));
+            console.log(chalk.dim(`     📝 ${result.slice(0, 150)}`));
+            fixResults.push({ issue, success: true, output: result.slice(0, 200), filesCreated });
+          } else {
+            failed++;
+            console.log(chalk.yellow(`     ⚠️  Copilot responded but files not found on disk`));
+            console.log(chalk.dim(`     📝 ${result.slice(0, 200)}`));
+            fixResults.push({ issue, success: false, output: 'Files not created on disk', filesCreated });
+          }
+        } catch (err: any) {
+          failed++;
+          console.log(chalk.red(`     ❌ Error: ${err?.message?.slice(0, 120) || 'Unknown error'}`));
+          fixResults.push({ issue, success: false, output: err?.message?.slice(0, 200) || 'Unknown error', filesCreated: [] });
+        }
+      }
+
+      progress.succeed('All fixes');
+
+      // Summary
+      console.log(`\n${chalk.bold('  Fix Summary')}\n`);
+      console.log(chalk.dim('  ─────────────────────────────────────────────────────────────────────'));
+
+      for (const r of fixResults) {
+        const icon = r.success ? chalk.green('✅') : r.output === 'Skipped by user' ? chalk.dim('⏭️') : chalk.red('❌');
+        const fileInfo = r.filesCreated.length > 0 ? chalk.dim(` → ${r.filesCreated.join(', ')}`) : '';
+        const failReason = !r.success && r.output !== 'Skipped by user' ? chalk.dim(` (${r.output.slice(0, 60)})`) : '';
+        console.log(`  ${icon} ${r.issue.title}${fileInfo}${failReason}`);
+      }
+
+      console.log(chalk.dim('  ─────────────────────────────────────────────────────────────────────'));
+      console.log(`  ${chalk.green.bold(`${fixed} fixed`)} | ${chalk.red(`${failed} failed`)} | ${chalk.dim(`${toFix.length - fixed - failed} skipped`)}\n`);
+
+      // Offer deployment guide if CI was fixed
+      if (ciIssue && fixResults.find(r => r.issue.id === 'ci-pipeline' && r.success)) {
+        const rl3 = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const wantDeploy = await new Promise<string>(r =>
+          rl3.question(chalk.cyan('  Generate production deployment guide? (y/n): '), r),
+        );
+        rl3.close();
+
+        if (wantDeploy.trim().toLowerCase() === 'y') {
+          console.log(chalk.dim('\n  Generating take-it-to-prod.md...\n'));
+          const deployPrompt = buildDeployGuidePrompt(context);
+          await askCopilotWithWrite(deployPrompt, { projectDir: cwd, timeoutMs: 240000 });
+          console.log(chalk.green('  ✅ take-it-to-prod.md created!\n'));
+        }
+      }
+
+      // Secrets/env notification
+      if (ciIssue && context.ciProvider) {
+        console.log(chalk.bold.yellow('  ⚠️  CI/CD Setup Reminders:\n'));
+        const envHints: Record<string, string[]> = {
+          'GitHub Actions': [
+            'Go to Settings → Secrets and variables → Actions',
+            'Add required secrets (API keys, deploy tokens, etc.)',
+            'Review the generated workflow file before pushing',
+          ],
+          'GitLab CI': [
+            'Go to Settings → CI/CD → Variables',
+            'Add required CI/CD variables',
+            'Review .gitlab-ci.yml before committing',
+          ],
+          'CircleCI': [
+            'Go to Project Settings → Environment Variables',
+            'Add required environment variables',
+            'Review .circleci/config.yml before pushing',
+          ],
+          'Jenkins': [
+            'Configure credentials in Jenkins → Manage Credentials',
+            'Set up the pipeline in Jenkins dashboard',
+            'Review Jenkinsfile before committing',
+          ],
+          'Travis CI': [
+            'Go to Travis CI settings for this repo',
+            'Add required environment variables',
+            'Review .travis.yml before pushing',
+          ],
+          'Azure Pipelines': [
+            'Go to Azure DevOps → Pipelines → Library',
+            'Add required variable groups and secrets',
+            'Review azure-pipelines.yml before committing',
+          ],
+        };
+
+        const hints = envHints[context.ciProvider] || envHints['GitHub Actions'];
+        for (const hint of hints) {
+          console.log(chalk.dim(`     → ${hint}`));
+        }
+        console.log('');
+      }
+
+      if (fixed > 0) {
+        console.log(chalk.green.bold('  📈 Run `reposentry analyze` again to see your improved scores!\n'));
+      }
+    });
+
+  program
     .command('init')
     .description('Interactive setup — choose what to generate')
     .action(async () => {
@@ -286,9 +583,10 @@ async function runInteractiveMode(): Promise<void> {
   console.log('  9. ❤️  Health Report           Score + grade badge');
   console.log(' 10. 🧠 Change AI Model         Select model for analysis');
   console.log(' 11. 📁 Preview Reports          Start preview server');
+  console.log(' 12. 🔨 Fix Issues              Auto-fix detected project issues');
   console.log('  0. ❌ Exit\n');
 
-  const choice = (await ask(chalk.cyan('  Select option (0-11): '))).trim();
+  const choice = (await ask(chalk.cyan('  Select option (0-12): '))).trim();
 
   const engineMap: Record<string, Partial<AnalyzeOptions>> = {
     '1': {},
@@ -367,6 +665,15 @@ async function runInteractiveMode(): Promise<void> {
     const { startServer } = await import('./server/index.js');
     const config = await loadConfig();
     await startServer({ port: 3000, outputDir: config.output });
+    return;
+  }
+
+  if (choice === '12') {
+    rl.close();
+    // Delegate to the fix command programmatically
+    const { createCLI } = await import('./cli.js');
+    const fixProgram = createCLI();
+    await fixProgram.parseAsync(['node', 'reposentry', 'fix']);
     return;
   }
 

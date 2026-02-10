@@ -284,6 +284,99 @@ export async function askCopilot(prompt: string, options?: CopilotOptions): Prom
   return '[Copilot analysis unavailable]';
 }
 
+/**
+ * Prepare a prompt specifically for file-writing operations.
+ * Unlike preparePrompt(), this instructs Copilot to USE the write tool.
+ */
+function prepareWritePrompt(prompt: string, maxLen = 6000): string {
+  const prefix = 'IMPORTANT: You MUST use the write tool to create or modify the requested file(s). ' +
+    'Do NOT just output the content — actually write it to the filesystem. ' +
+    'After writing, confirm what file(s) you created and their paths. ' +
+    'Do NOT ask clarifying questions.\n\n';
+
+  let clean = (prefix + prompt).replace(/\s+/g, ' ').trim();
+  if (clean.length > maxLen) {
+    clean = clean.slice(0, maxLen) + ' ... (truncated)';
+  }
+  return clean;
+}
+
+/**
+ * Call Copilot CLI with write permissions enabled.
+ * Used by `reposentry fix` to let Copilot create/modify project files.
+ * Returns the raw output (not cleaned) so callers can show progress.
+ */
+export async function askCopilotWithWrite(prompt: string, options?: CopilotOptions): Promise<string> {
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  if (!opts.projectDir) opts.projectDir = process.cwd();
+  const backend = detectBackend();
+
+  if (backend === 'none') {
+    return '[Copilot unavailable — no Copilot CLI found]';
+  }
+
+  const cleanPrompt = prepareWritePrompt(prompt);
+
+  for (let attempt = 1; attempt <= opts.maxRetries; attempt++) {
+    try {
+      logger.debug(`Copilot write call attempt ${attempt}/${opts.maxRetries}`);
+
+      let stdout: string;
+      let stderr: string;
+
+      if (backend === 'copilot-cli') {
+        const result = spawnSync('copilot', [
+          '-p', cleanPrompt,
+          '--allow-all',
+          '--no-ask-user',
+          '--model', globalModel,
+        ], {
+          encoding: 'utf-8',
+          timeout: opts.timeoutMs,
+          stdio: ['pipe', 'pipe', 'pipe'],
+          maxBuffer: 1024 * 1024 * 10,
+          cwd: opts.projectDir,
+        });
+
+        if (result.error) throw result.error;
+        stdout = result.stdout || '';
+        stderr = result.stderr || '';
+        if (result.status !== 0 && !stdout.trim()) {
+          throw new Error(stderr || `copilot exited with code ${result.status}`);
+        }
+      } else {
+        const result = spawnSync('gh', [
+          'copilot', '-p', cleanPrompt,
+        ], {
+          encoding: 'utf-8',
+          timeout: opts.timeoutMs,
+          stdio: ['pipe', 'pipe', 'pipe'],
+          maxBuffer: 1024 * 1024 * 10,
+          cwd: opts.projectDir,
+        });
+
+        if (result.error) throw result.error;
+        stdout = result.stdout || '';
+        stderr = result.stderr || '';
+        if (result.status !== 0 && !stdout.trim()) {
+          throw new Error(stderr || `gh copilot exited with code ${result.status}`);
+        }
+      }
+
+      // Return raw output (don't strip narration — caller needs to see what happened)
+      return stdout.trim() || 'Done (no output)';
+    } catch (err: any) {
+      if (attempt === opts.maxRetries) {
+        logger.error(`Copilot write call failed after ${opts.maxRetries} attempts`);
+        return `[Fix failed — ${(err?.message || 'command failed').slice(0, 150)}]`;
+      }
+      const delay = opts.retryDelayMs * Math.pow(2, attempt - 1);
+      await sleep(delay);
+    }
+  }
+  return '[Fix failed]';
+}
+
 /** Batch multiple Copilot calls sequentially with rate limiting */
 export async function batchCopilotCalls(
   prompts: Array<{ key: string; prompt: string }>,

@@ -80,6 +80,8 @@ reposentry analyze --ignore "dist/**" # Skip patterns
 
 Run all engines — docs, architecture, security, CI/CD, testing, performance, collaboration, and health scoring:
 
+> 💡 Check out [`.reposentry/`](.reposentry/) in this repo — we ran RepoSentry on itself so you can see real output.
+
 <div align="center">
 <img src="public/full-analysis.png" alt="RepoSentry full analysis" width="700">
 </div>

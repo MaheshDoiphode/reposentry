@@ -1,6 +1,6 @@
 {
   "name": "reposentry",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI-powered codebase intelligence platform (docs + architecture + security + CI + tests + performance)",
   "scripts": {
     "build": "tsup",
@@ -60,5 +60,13 @@
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
+  },
+  "peerDependencies": {
+    "@github/copilot": ">=0.0.1"
+  },
+  "peerDependenciesMeta": {
+    "@github/copilot": {
+      "optional": true
+    }
   }
 }

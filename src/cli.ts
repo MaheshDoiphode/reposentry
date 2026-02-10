@@ -263,7 +263,7 @@ ${chalk.bold('Examples:')}
       const { resolve: resolvePath } = await import('node:path');
       const readline = await import('node:readline');
       const { scanForFixableIssues, CI_PROVIDERS, buildDeployGuidePrompt } = await import('./engines/fix-engine.js');
-      const { askCopilotWithWrite, isCopilotAvailable, setCopilotModel } = await import('./core/copilot.js');
+      const { askCopilotWithWrite, isCopilotAvailable, setCopilotModel, checkCopilotAuth } = await import('./core/copilot.js');
       const { createProgress } = await import('./core/progress.js');
 
       const cwd = process.cwd();
@@ -273,6 +273,12 @@ ${chalk.bold('Examples:')}
 
       if (!isCopilotAvailable()) {
         console.error(chalk.red('  ❌ Copilot CLI not found. Install: npm i -g @github/copilot'));
+        process.exit(1);
+      }
+
+      const auth = checkCopilotAuth();
+      if (!auth.ok) {
+        console.error(chalk.red(`  ❌ ${auth.message}`));
         process.exit(1);
       }
 

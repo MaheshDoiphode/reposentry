@@ -44,7 +44,9 @@ cd your-project
 reposentry analyze
 ```
 
-> **Requires:** Node.js ≥ 18 • [GitHub Copilot CLI](https://docs.github.com/en/copilot) (recommended)
+> **Requires:** Node.js ≥ 18 • [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli) (requires active Copilot subscription)
+>
+> First time? Run `copilot` once to authenticate via `/login`, or set `GH_TOKEN` with a [PAT](https://github.com/settings/personal-access-tokens/new) that has "Copilot Requests" permission.
 
 ---
 
@@ -127,7 +129,9 @@ Preview reports in the browser with `reposentry serve`, including an interactive
 ## Requirements
 
 - **Node.js** ≥ 18
-- **GitHub Copilot CLI** — recommended for AI-powered analysis ([install guide](https://docs.github.com/en/copilot))
+- **GitHub Copilot CLI** — requires an active [Copilot subscription](https://github.com/features/copilot/plans)
+  - Install: `npm i -g @github/copilot` or `winget install GitHub.Copilot` or `brew install copilot-cli`
+  - Auth: run `copilot` and use `/login`, or set `GH_TOKEN`/`GITHUB_TOKEN` env var
 - Works on **git repos** and **non-git projects** (collaboration analysis requires git)
 
 ---

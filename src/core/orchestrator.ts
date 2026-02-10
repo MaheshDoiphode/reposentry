@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import boxen from 'boxen';
 import { logger, setVerbose } from '../utils/logger.js';
 import { isGitRepo, getRepoName } from '../utils/git.js';
-import { isCopilotAvailable, getCopilotBackendName, setCopilotModel } from './copilot.js';
+import { isCopilotAvailable, getCopilotBackendName, setCopilotModel, checkCopilotAuth } from './copilot.js';
 import { OutputManager, OutputOptions } from './output-manager.js';
 import { PromptContext, buildFileTree } from './prompt-builder.js';
 import { createProgress } from './progress.js';
@@ -79,6 +79,11 @@ export async function runAnalysis(opts: AnalyzeOptions): Promise<void> {
     logger.warn('Continuing — Copilot-powered analysis will return placeholder results.');
   } else {
     logger.info(`🤖 Copilot backend: ${getCopilotBackendName()}`);
+    const auth = checkCopilotAuth();
+    if (!auth.ok) {
+      logger.warn(`⚠️  ${auth.message}`);
+      logger.warn('Continuing — Copilot calls may fail. Authenticate first for best results.');
+    }
   }
 
   // ─── Phase 1: Scanning ───

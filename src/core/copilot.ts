@@ -86,6 +86,65 @@ export function isCopilotAvailable(): boolean {
   return detectBackend() !== 'none';
 }
 
+/**
+ * Check if the user is authenticated with Copilot CLI.
+ * Runs a minimal prompt and inspects the output for auth errors.
+ * Returns { ok: true } or { ok: false, message: string }.
+ */
+export function checkCopilotAuth(): { ok: boolean; message?: string } {
+  const backend = detectBackend();
+  if (backend === 'none') return { ok: false, message: 'Copilot CLI not installed.' };
+
+  try {
+    const cmd = backend === 'copilot-cli' ? 'copilot' : 'gh';
+    const args = backend === 'copilot-cli'
+      ? ['-p', 'echo ok', '-s', '--model', globalModel]
+      : ['copilot', '-p', 'echo ok'];
+
+    const result = spawnSync(cmd, args, {
+      encoding: 'utf-8',
+      timeout: 30000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 1024 * 1024,
+    });
+
+    const combined = ((result.stdout || '') + (result.stderr || '')).toLowerCase();
+
+    // Check for common auth failure patterns
+    const authPatterns = [
+      'not logged in', 'not authenticated', 'unauthorized', 'login required',
+      '/login', 'authentication required', 'token expired', 'invalid token',
+      'no github token', 'could not authenticate', 'credentials', '401',
+      'copilot is not enabled', 'copilot is disabled',
+      'subscription', 'you don\'t have access',
+    ];
+
+    for (const pattern of authPatterns) {
+      if (combined.includes(pattern)) {
+        return {
+          ok: false,
+          message: combined.includes('subscription') || combined.includes('access') || combined.includes('enabled') || combined.includes('disabled')
+            ? 'GitHub Copilot subscription required. Ensure you have an active Copilot plan at https://github.com/features/copilot/plans'
+            : 'Not authenticated. Run `copilot` interactively and use /login to authenticate, or set GH_TOKEN/GITHUB_TOKEN with a token that has "Copilot Requests" permission.',
+        };
+      }
+    }
+
+    // Non-zero exit with no stdout could be auth issue
+    if (result.status !== 0 && !result.stdout?.trim()) {
+      const errMsg = (result.stderr || '').trim();
+      if (errMsg) {
+        return { ok: false, message: `Copilot CLI error: ${errMsg.slice(0, 200)}` };
+      }
+    }
+
+    return { ok: true };
+  } catch {
+    // Timeout or crash — might be network issue, treat as ok (will fail later with clear message)
+    return { ok: true };
+  }
+}
+
 /** Get a human-friendly name for the detected backend */
 export function getCopilotBackendName(): string {
   const b = detectBackend();

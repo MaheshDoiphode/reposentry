@@ -1,10 +1,12 @@
 <div align="center">
 
-# 🛡️ RepoSentry
+# RepoSentry
 
-**AI-Powered Codebase Intelligence Platform**
+**AI-powered codebase intelligence (docs, diagrams, security, CI/CD)**
 
-Analyze any project. Generate docs, security audits, CI/CD pipelines, architecture diagrams, and more — powered by GitHub Copilot.
+Analyze any project and generate production-ready docs, architecture diagrams, security audits, CI/CD suggestions, tests, and a health grade — powered by GitHub Copilot CLI.
+
+[DEV.to challenge post](https://dev.to/check__/reposentry-ai-codebase-intelligence-docs-diagrams-security-ci-built-with-copilot-cli-3ghm) • [npm](https://www.npmjs.com/package/reposentry) • [GitHub](https://github.com/MaheshDoiphode/reposentry)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A518-green)](https://nodejs.org)
@@ -20,14 +22,14 @@ Point RepoSentry at any codebase and it generates a full intelligence report:
 
 | Engine | What you get |
 |--------|-------------|
-| 📝 **Documentation** | README, API docs, Setup guide, Contributing guide, Changelog, FAQ |
-| 🏗️ **Architecture** | Mermaid diagrams, dependency graphs, component maps |
-| 🔒 **Security** | Vulnerability scan, threat model, CVSS severity |
-| 🔄 **CI/CD** | Pipeline config (GitHub Actions, GitLab, CircleCI, Jenkins, Travis, Azure) |
-| 🧪 **Testing** | API test collection, HTTP templates, Postman export |
-| ⚡ **Performance** | Anti-pattern detection, bottleneck analysis |
-| 🤝 **Collaboration** | PR templates, issue templates, CODEOWNERS, onboarding *(git repos only)* |
-| ❤️ **Health Report** | Weighted score, letter grade, trend tracking |
+| **Documentation** | README, API docs, Setup guide, Contributing guide, Changelog, FAQ |
+| **Architecture** | Mermaid diagrams, dependency graphs, component maps |
+| **Security** | Vulnerability scan, threat model |
+| **CI/CD** | Pipeline + infra suggestions |
+| **Testing** | API test collection, HTTP templates, Postman export |
+| **Performance** | Anti-pattern detection |
+| **Collaboration** | PR templates, issue templates, CODEOWNERS, onboarding *(git repos only)* |
+| **Health Report** | Weighted score, letter grade, trend tracking |
 
 ---
 
@@ -38,7 +40,7 @@ Point RepoSentry at any codebase and it generates a full intelligence report:
 npm i -g reposentry
 
 # Instant demo (no analysis needed)
-# This repo includes a pre-generated .reposentry/ output so judges can preview immediately.
+# This repo includes a pre-generated .reposentry/ output so you can preview immediately.
 git clone https://github.com/MaheshDoiphode/reposentry.git
 cd reposentry
 reposentry serve
@@ -49,9 +51,11 @@ reposentry serve
 # cd reposentry
 # npm install && npm run build && npm link
 
-# Navigate to any project and run
-cd your-project
-reposentry analyze
+# Faster runs: target specific engines (recommended for first try)
+cd path/to/any-repo
+reposentry analyze --docs --architecture --health --depth quick --force
+reposentry serve
+# open http://localhost:3000
 ```
 
 > **Requires:** Node.js ≥ 18 • [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli) (requires active Copilot subscription)
@@ -86,28 +90,52 @@ reposentry analyze --ignore "dist/**" # Skip patterns
 
 ---
 
-## In Action
+## Screenshots
 
-### Full Analysis
+RepoSentry includes a preview UI (`reposentry serve`) so you can browse every generated report.
 
-Run all engines — docs, architecture, security, CI/CD, testing, performance, collaboration, and health scoring:
-
-> 💡 Check out [`.reposentry/`](.reposentry/) in this repo — we ran RepoSentry on itself so you can see real output.
+### Full analysis run
 
 <div align="center">
-<img src="public/full-analysis.png" alt="RepoSentry full analysis" width="700">
+<img src="public/full-analysis.png" alt="RepoSentry full analysis" width="800">
 </div>
 
-### Auto-Fix Issues
-
-Scan for missing files and let Copilot fix them:
+### Copilot-powered fixes
 
 <div align="center">
-<img src="public/fix-issue-automatically.png" alt="RepoSentry fix — issue detection" width="700">
+<img src="public/fix-issue-automatically.png" alt="RepoSentry fix — issue detection" width="800">
 </div>
 
 <div align="center">
-<img src="public/fix-issue-automatically-2.png" alt="RepoSentry fix — Copilot creating files" width="700">
+<img src="public/fix-issue-automatically-2.png" alt="RepoSentry fix — Copilot creating files" width="800">
+</div>
+
+### Health report
+
+<div align="center">
+<img src="public/health-report.jpeg" alt="RepoSentry health report UI" width="800">
+</div>
+
+### Architecture (report + diagram)
+
+<div align="center">
+<img src="public/architecture-page.jpeg" alt="RepoSentry architecture report UI" width="800">
+</div>
+
+<div align="center">
+<img src="public/architecture-diag.png" alt="RepoSentry architecture diagram" width="800">
+</div>
+
+### Threat model diagram
+
+<div align="center">
+<img src="public/threat-diag.png" alt="RepoSentry threat model diagram" width="800">
+</div>
+
+### Production guide
+
+<div align="center">
+<img src="public/take-it-to-prod.jpeg" alt="RepoSentry production deployment guide" width="800">
 </div>
 
 ---

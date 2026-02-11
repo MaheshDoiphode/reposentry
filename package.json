@@ -1,6 +1,6 @@
 {
   "name": "reposentry",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "AI-powered codebase intelligence platform (docs + architecture + security + CI + tests + performance)",
   "scripts": {
     "build": "tsup",

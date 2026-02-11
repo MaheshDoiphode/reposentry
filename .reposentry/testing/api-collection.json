@@ -1,0 +1,183 @@
+{
+  "info": {
+    "name": "RepoSentry API Collection",
+    "description": "Postman collection for RepoSentry API endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Get Index",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        },
+        "description": "Get the index page. Redirects to HEALTH_REPORT.md if available, otherwise README.md or the first available file. Returns HTML page rendering."
+      },
+      "response": [
+        {
+          "name": "200 - Success (Redirect to file view)",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "html",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "text/html; charset=utf-8",
+              "type": "text"
+            }
+          ],
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <title>RepoSentry</title>\n</head>\n<body>\n  <h1>RepoSentry Analysis Report</h1>\n</body>\n</html>"
+        }
+      ]
+    },
+    {
+      "name": "View File",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/view/HEALTH_REPORT.md",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "view",
+            "HEALTH_REPORT.md"
+          ]
+        },
+        "description": "View a specific file from the output directory. Supports markdown (.md), mermaid (.mmd), and plain text files. Returns HTML-rendered page."
+      },
+      "response": [
+        {
+          "name": "200 - Markdown File",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "html",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "text/html; charset=utf-8",
+              "type": "text"
+            }
+          ],
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <title>HEALTH_REPORT.md - RepoSentry</title>\n</head>\n<body>\n  <h1>Health Report</h1>\n  <p>Analysis results...</p>\n</body>\n</html>"
+        },
+        {
+          "name": "404 - File Not Found",
+          "status": "Not Found",
+          "code": 404,
+          "_postman_previewlanguage": "html",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "text/html; charset=utf-8",
+              "type": "text"
+            }
+          ],
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <title>Not Found - RepoSentry</title>\n</head>\n<body>\n  <h1>404 - File Not Found</h1>\n</body>\n</html>"
+        },
+        {
+          "name": "403 - Forbidden (Path Traversal)",
+          "status": "Forbidden",
+          "code": 403,
+          "_postman_previewlanguage": "html",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "text/html; charset=utf-8",
+              "type": "text"
+            }
+          ],
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <title>Forbidden - RepoSentry</title>\n</head>\n<body>\n  <h1>403 - Forbidden</h1>\n</body>\n</html>"
+        }
+      ]
+    },
+    {
+      "name": "Compare Analysis Results",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/compare?left=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "compare"
+          ],
+          "query": [
+            {
+              "key": "left",
+              "value": "1",
+              "description": "Optional: Index of left-side analysis to compare (1-based). If not provided, shows selection picker."
+            }
+          ]
+        },
+        "description": "Compare analysis results across different runs. Requires history.json with at least 2 analysis records. Optional 'left' query parameter to specify which analysis to compare."
+      },
+      "response": [
+        {
+          "name": "200 - Comparison Results",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "html",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "text/html; charset=utf-8",
+              "type": "text"
+            }
+          ],
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <title>Compare - RepoSentry</title>\n</head>\n<body>\n  <h1>Analysis Comparison</h1>\n  <p>Run 1: Score 85 (Grade A)</p>\n  <p>Run 2: Score 88 (Grade A)</p>\n</body>\n</html>"
+        },
+        {
+          "name": "200 - No History",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "html",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "text/html; charset=utf-8",
+              "type": "text"
+            }
+          ],
+          "body": "<!doctype html>\n<html lang=\"en\">\n<head>\n  <title>Compare - RepoSentry</title>\n</head>\n<body>\n  <h1>No History</h1>\n  <p>Run reposentry analyze at least twice to compare scores.</p>\n</body>\n</html>"
+        }
+      ]
+    }
+  ]
+}

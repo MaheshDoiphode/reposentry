@@ -1,0 +1,48 @@
+flowchart TD
+    CLI[CLI Entry Point]
+    Config[Config Loader]
+    Orchestrator[Orchestrator<br/>Core Coordinator]
+    
+    Scanners["Scanners<br/>Code Analysis"]
+    FS["File Scanner<br/>Language Detector<br/>Config Detector<br/>Import Parser<br/>Route Detector<br/>Model Detector<br/>Git Analyzer"]
+    
+    Engines["Engines<br/>Analysis Processors"]
+    ENG["Docs Engine<br/>Architecture Engine<br/>Security Engine<br/>CI Engine<br/>API Test Engine<br/>Performance Engine<br/>Team Engine<br/>Health Engine"]
+    
+    Copilot["Copilot AI<br/>LLM Integration"]
+    ExternalAPI["External APIs<br/>GitHub Copilot<br/>LLM Services"]
+    
+    OutputMgr[Output Manager]
+    Reports["Output Files<br/>Reports<br/>Mermaid Diagrams<br/>Analysis Results"]
+    
+    Server["Express Server<br/>API Endpoints"]
+    Endpoints["GET /<br/>GET /view/*<br/>GET /compare"]
+    
+    Utilities["Utilities<br/>Logging, Git, FS<br/>Scoring, Mermaid"]
+    
+    CLI --> Config
+    Config --> Orchestrator
+    
+    Orchestrator --> Scanners
+    Scanners --> FS
+    
+    Orchestrator --> Engines
+    Engines --> ENG
+    
+    Orchestrator --> OutputMgr
+    
+    ENG --> Copilot
+    Copilot --> ExternalAPI
+    
+    FS --> OutputMgr
+    ENG --> OutputMgr
+    
+    OutputMgr --> Reports
+    
+    Reports --> Server
+    Server --> Endpoints
+    
+    Orchestrator -.-> Utilities
+    Scanners -.-> Utilities
+    Engines -.-> Utilities
+    OutputMgr -.-> Utilities

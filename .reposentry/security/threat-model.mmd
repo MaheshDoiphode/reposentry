@@ -1,0 +1,110 @@
+flowchart TD
+    subgraph Users["🧑 Users & Threat Actors"]
+        DevTeam["Developer Team<br/>Trusted Internal Users"]
+        ExternalUser["External User<br/>Untrusted Input Source"]
+        Attacker["Attacker<br/>Malicious Intent"]
+    end
+
+    subgraph ClientBoundary["CLIENT TRUST BOUNDARY"]
+        CLI["CLI Interface<br/>reposentry analyze/serve"]
+        Config["Config Loader<br/>reposentry.config.js"]
+    end
+
+    subgraph ProcessBoundary["PROCESS TRUST BOUNDARY"]
+        Orchestrator["Orchestrator<br/>Main Workflow"]
+        Scanners["Scanners<br/>File/Git/Code Analysis"]
+        Engines["Analysis Engines<br/>Security/Arch/Docs"]
+        Copilot["Copilot Integration<br/>AI Backend"]
+    end
+
+    subgraph LocalFileBoundary["LOCAL FILE SYSTEM BOUNDARY"]
+        FileSystem["File System<br/>Source Code Files"]
+        GitRepo["Git Repository<br/>History & Metadata"]
+        OutputFiles["Output Directory<br/>.reposentry/"]
+        TempDir["Temp Directory<br/>Intermediate Data"]
+    end
+
+    subgraph ExternalBoundary["EXTERNAL SYSTEMS BOUNDARY"]
+        CopilotAPI["Copilot CLI<br/>AI Model API"]
+        GitHubAPI["GitHub API<br/>Repository Metadata"]
+        ExternalWeb["Web Server<br/>localhost:3000"]
+    end
+
+    DataStores["💾 Data Stores"]
+    VulnStore["Vulnerabilities JSON"]
+    AnalysisStore["analysis.json"]
+    HistoryStore["history.json"]
+    MermaidStore["Mermaid Diagrams"]
+
+    Threats["⚠️ ATTACK SURFACES"]
+    T1["Command Injection<br/>execSync in git.ts<br/>CRITICAL"]
+    T2["Code Injection<br/>eval() in security-engine.ts<br/>HIGH"]
+    T3["Template Injection<br/>Handlebars rendering<br/>MEDIUM"]
+    T4["Path Traversal<br/>File system access<br/>MEDIUM"]
+    T5["Information Disclosure<br/>console.log output<br/>LOW"]
+    T6["Weak Hashing<br/>MD5 in health-engine.ts<br/>MEDIUM"]
+    T7["HTML Injection<br/>Markdown rendering<br/>MEDIUM"]
+    T8["Unvalidated Input<br/>Glob patterns<br/>MEDIUM"]
+
+    DevTeam -->|"Trusted: execute locally"| CLI
+    ExternalUser -->|"Input: Config files"| Config
+    Attacker -->|"Attack: Malicious repo"| FileSystem
+    Attacker -->|"Attack: Code injection"| Config
+
+    CLI -->|"Load options"| Config
+    CLI -->|"Start analysis"| Orchestrator
+    CLI -->|"Serve reports"| ExternalWeb
+
+    Orchestrator -->|"Scan files"| Scanners
+    Orchestrator -->|"Run engines"| Engines
+    Orchestrator -->|"AI analysis"| Copilot
+    Orchestrator -->|"Write output"| OutputFiles
+
+    Scanners -->|"Read source"| FileSystem
+    Scanners -->|"Query history"| GitRepo
+    Scanners -->|"Parse imports"| FileSystem
+    Scanners -->|"Detect routes"| FileSystem
+
+    Engines -->|"Quick security scan"| FileSystem
+    Engines -->|"Pattern matching"| FileSystem
+    Engines -->|"Generate diagrams"| OutputFiles
+    Engines -->|"Build architecture"| OutputFiles
+
+    Copilot -->|"Send prompts"| CopilotAPI
+    CopilotAPI -->|"Return analysis"| Copilot
+
+    GitRepo -->|"Get contributors"| Scanners
+    GitRepo -->|"Get commit history"| Scanners
+
+    OutputFiles -->|"Store findings"| VulnStore
+    OutputFiles -->|"Store scores"| AnalysisStore
+    OutputFiles -->|"Store trends"| HistoryStore
+    OutputFiles -->|"Store visuals"| MermaidStore
+
+    ExternalWeb -->|"Serve markdown"| OutputFiles
+    ExternalWeb -->|"Render HTML"| MermaidStore
+
+    FileSystem -.->|"Vulnerability: Command injection via git.ts"| T1
+    Engines -.->|"Vulnerability: eval() execution"| T2
+    OutputFiles -.->|"Vulnerability: Unescaped HTML/Markdown"| T7
+    Scanners -.->|"Vulnerability: Path traversal in file ops"| T4
+    Orchestrator -.->|"Vulnerability: console.log leaks info"| T5
+    OutputFiles -.->|"Vulnerability: Weak MD5 hashing"| T6
+    Config -.->|"Vulnerability: Glob pattern injection"| T8
+    Copilot -.->|"Vulnerability: Template injection in prompts"| T3
+
+    style Users fill:#ffebee
+    style ClientBoundary fill:#e3f2fd
+    style ProcessBoundary fill:#f3e5f5
+    style LocalFileBoundary fill:#fff3e0
+    style ExternalBoundary fill:#e0f2f1
+    style DataStores fill:#fce4ec
+    style Threats fill:#ffcccc
+    style T1 fill:#d32f2f,color:#fff
+    style T2 fill:#f57c00,color:#fff
+    style T3 fill:#ffa726,color:#fff
+    style T4 fill:#ffa726,color:#fff
+    style T5 fill:#ffb74d,color:#fff
+    style T6 fill:#ffa726,color:#fff
+    style T7 fill:#ffa726,color:#fff
+    style T8 fill:#ffa726,color:#fff

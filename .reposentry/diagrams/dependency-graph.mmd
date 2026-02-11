@@ -1,0 +1,167 @@
+flowchart LR
+    subgraph CLI["CLI Entry"]
+        index["index.ts"]
+        cli["cli.ts"]
+    end
+    
+    subgraph CONFIG["Config"]
+        config["config.ts"]
+    end
+    
+    subgraph CORE["Core"]
+        orch["orchestrator.ts"]
+        copilot["copilot.ts"]
+        outmgr["output-manager.ts"]
+        progress["progress.ts"]
+        prompt["prompt-builder.ts"]
+    end
+    
+    subgraph SCANNERS["Scanners"]
+        filescan["file-scanner.ts"]
+        langdetect["language-detector.ts"]
+        cfgdetect["config-detector.ts"]
+        impparse["import-parser.ts"]
+        routedetect["route-detector.ts"]
+        modeldetect["model-detector.ts"]
+        gitanalyze["git-analyzer.ts"]
+    end
+    
+    subgraph ENGINES["Engines"]
+        doceng["docs-engine.ts"]
+        archeng["architecture-engine.ts"]
+        seceng["security-engine.ts"]
+        cieng["ci-engine.ts"]
+        apieng["api-test-engine.ts"]
+        perfeng["performance-engine.ts"]
+        teameng["team-engine.ts"]
+        healtheng["health-engine.ts"]
+    end
+    
+    subgraph PROMPTS["Prompts"]
+        docprompt["docs.prompts.ts"]
+        archprompt["architecture.prompts.ts"]
+        secprompt["security.prompts.ts"]
+        ciprompt["ci.prompts.ts"]
+        apiprompt["api-test.prompts.ts"]
+        perfprompt["performance.prompts.ts"]
+        teamprompt["team.prompts.ts"]
+        healthprompt["health.prompts.ts"]
+    end
+    
+    subgraph UTILS["Utils"]
+        fs["fs.ts"]
+        git["git.ts"]
+        logger["logger.ts"]
+        mermaid["mermaid.ts"]
+        scoring["scoring.ts"]
+        version["version.ts"]
+    end
+    
+    index --> cli
+    cli --> orch
+    cli --> config
+    cli --> version
+    
+    orch --> copilot
+    orch --> outmgr
+    orch --> prompt
+    orch --> progress
+    orch --> filescan
+    orch --> langdetect
+    orch --> cfgdetect
+    orch --> impparse
+    orch --> routedetect
+    orch --> modeldetect
+    orch --> gitanalyze
+    orch --> doceng
+    orch --> archeng
+    orch --> seceng
+    orch --> cieng
+    orch --> apieng
+    orch --> perfeng
+    orch --> teameng
+    orch --> healtheng
+    orch --> scoring
+    orch --> logger
+    orch --> version
+    
+    copilot --> logger
+    
+    outmgr --> fs
+    outmgr --> logger
+    outmgr --> version
+    
+    progress --> logger
+    
+    apieng --> copilot
+    apieng --> outmgr
+    apieng --> prompt
+    apieng --> progress
+    apieng --> routedetect
+    
+    archeng --> copilot
+    archeng --> outmgr
+    archeng --> prompt
+    archeng --> progress
+    archeng --> mermaid
+    archeng --> impparse
+    archeng --> modeldetect
+    archeng --> routedetect
+    
+    cieng --> copilot
+    cieng --> outmgr
+    cieng --> prompt
+    cieng --> progress
+    cieng --> fs
+    
+    doceng --> copilot
+    doceng --> outmgr
+    doceng --> prompt
+    doceng --> progress
+    doceng --> docprompt
+    doceng --> routedetect
+    
+    healtheng --> copilot
+    healtheng --> outmgr
+    healtheng --> prompt
+    healtheng --> progress
+    healtheng --> scoring
+    healtheng --> healthprompt
+    healtheng --> fs
+    
+    perfeng --> copilot
+    perfeng --> outmgr
+    perfeng --> prompt
+    perfeng --> progress
+    perfeng --> fs
+    perfeng --> perfprompt
+    
+    seceng --> copilot
+    seceng --> outmgr
+    seceng --> prompt
+    seceng --> progress
+    seceng --> fs
+    
+    teameng --> copilot
+    teameng --> outmgr
+    teameng --> prompt
+    teameng --> progress
+    teameng --> gitanalyze
+    
+    apiprompt --> prompt
+    archprompt --> prompt
+    ciprompt --> prompt
+    docprompt --> prompt
+    healthprompt --> prompt
+    perfprompt --> prompt
+    secprompt --> prompt
+    teamprompt --> prompt
+    
+    filescan --> fs
+    cfgdetect --> fs
+    impparse --> fs
+    langdetect --> fs
+    modeldetect --> fs
+    routedetect --> fs
+    
+    gitanalyze --> git

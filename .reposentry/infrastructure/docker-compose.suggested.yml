@@ -1,0 +1,117 @@
+# docker-compose.yml
+
+## Local Development Environment Configuration
+
+
+version: '3.9'
+
+services:
+  # Main Application Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reposentry-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - PORT=3000
+      - REPOSENTRY_OUTPUT=.reposentry
+      - REPOSENTRY_DEPTH=standard
+      - REPOSENTRY_FORMAT=markdown
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/dist
+    working_dir: /app
+    command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - reposentry-network
+    depends_on:
+      - redis
+
+  # Redis Cache Service
+  redis:
+    image: redis:7-alpine
+    container_name: reposentry-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-reposentry}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reposentry-network
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-reposentry}
+
+  # PostgreSQL Database (Optional - for caching analysis results)
+  postgres:
+    image: postgres:16-alpine
+    container_name: reposentry-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER:-reposentry}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-reposentry}
+      - POSTGRES_DB=${DB_NAME:-reposentry_dev}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-reposentry} -d ${DB_NAME:-reposentry_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reposentry-network
+
+  # RabbitMQ Message Queue (Optional - for async analysis)
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: reposentry-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - reposentry-network
+
+volumes:
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+
+networks:
+  reposentry-network:
+    driver: bridge

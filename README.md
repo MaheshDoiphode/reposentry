@@ -34,10 +34,20 @@ Point RepoSentry at any codebase and it generates a full intelligence report:
 ## Quick Start
 
 ```bash
-# Install from source
+# Install from npm
+npm i -g reposentry
+
+# Instant demo (no analysis needed)
+# This repo includes a pre-generated .reposentry/ output so judges can preview immediately.
 git clone https://github.com/MaheshDoiphode/reposentry.git
 cd reposentry
-npm install && npm run build && npm link
+reposentry serve
+# open http://localhost:3000
+
+# (or) install from source
+# git clone https://github.com/MaheshDoiphode/reposentry.git
+# cd reposentry
+# npm install && npm run build && npm link
 
 # Navigate to any project and run
 cd your-project

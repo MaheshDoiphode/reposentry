@@ -1,0 +1,31 @@
+sequenceDiagram
+    participant Client
+    participant APIGateway as API Gateway
+    participant AuthMW as Auth Middleware
+    participant RouteHandler as Route Handler
+    participant ServiceLayer as Service Layer
+    participant Database as Database
+
+    Client->>APIGateway: GET /view/filepath
+    APIGateway->>AuthMW: Check Authorization
+    
+    alt Auth Success
+        AuthMW->>RouteHandler: Pass Request
+        RouteHandler->>ServiceLayer: Process Request
+        
+        alt Service Success
+            ServiceLayer->>Database: Query Data
+            Database-->>ServiceLayer: Return Data
+            ServiceLayer-->>RouteHandler: Return Result
+            RouteHandler-->>APIGateway: 200 OK
+            APIGateway-->>Client: Success Response
+        else Service Error
+            ServiceLayer-->>RouteHandler: Error
+            RouteHandler-->>APIGateway: 500 Internal Error
+            APIGateway-->>Client: Error Response
+        end
+    else Auth Failure
+        AuthMW-->>RouteHandler: Reject Request
+        RouteHandler-->>APIGateway: 401 Unauthorized
+        APIGateway-->>Client: Unauthorized Response
+    end

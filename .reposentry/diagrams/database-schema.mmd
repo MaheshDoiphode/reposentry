@@ -1,0 +1,135 @@
+The project does NOT have traditional database tables or persistent data models. Instead, it has data structures and interfaces for in-memory analysis results. However, since you've requested an ER diagram and the project uses some form of data structures that represent entities (like analysis results, scores, git data, etc.), I'll create a diagram based on the logical data relationships found in the codebase.
+
+erDiagram
+    ANALYSIS ||--o{ SCORE_CATEGORY : contains
+    ANALYSIS ||--o{ GIT_ANALYSIS : includes
+    ANALYSIS ||--o{ SCAN_RESULT : from
+    SCAN_RESULT ||--o{ FILE_EXTENSION : tracks
+    GIT_ANALYSIS ||--o{ CONTRIBUTOR : has
+    GIT_ANALYSIS ||--o{ GIT_COMMIT : contains
+    GIT_ANALYSIS ||--o{ DIRECTORY_OWNERSHIP : maps
+    SCAN_RESULT ||--o{ MODEL_INFO : detects
+    MODEL_INFO ||--o{ MODEL_FIELD : contains
+    SCAN_RESULT ||--o{ ROUTE_INFO : finds
+    SCAN_RESULT ||--o{ IMPORT_INFO : parses
+    IMPORT_INFO ||--o{ DEPENDENCY : lists
+    OUTPUT ||--o{ HEALTH_REPORT : generates
+    HEALTH_REPORT ||--o{ SCORE_CATEGORY : contains
+    HEALTH_REPORT ||--o{ HISTORY_ENTRY : tracks
+    ENGINE ||--o{ OUTPUT : produces
+
+    ANALYSIS {
+        string projectName
+        string[] languages
+        string[] frameworks
+        string packageManager
+        string cwd
+        string outputDir
+        string format
+        string depth
+    }
+
+    SCORE_CATEGORY {
+        string name
+        number score
+        string grade
+        string details
+    }
+
+    GIT_ANALYSIS {
+        array contributors
+        array recentCommits
+        number totalCommits
+        array tags
+        array activeBranches
+        string firstCommitDate
+        string lastCommitDate
+    }
+
+    CONTRIBUTOR {
+        string name
+        number commits
+    }
+
+    GIT_COMMIT {
+        string hash
+        string message
+        string author
+        string date
+    }
+
+    DIRECTORY_OWNERSHIP {
+        string directory
+        string contributor
+    }
+
+    SCAN_RESULT {
+        array files
+        number totalFiles
+        map extensions
+        set directories
+    }
+
+    FILE_EXTENSION {
+        string extension
+        number count
+    }
+
+    MODEL_INFO {
+        string name
+        string file
+        string orm
+        array fields
+    }
+
+    MODEL_FIELD {
+        string name
+        string type
+        string description
+    }
+
+    ROUTE_INFO {
+        string method
+        string path
+        string file
+        string handler
+        array middleware
+    }
+
+    IMPORT_INFO {
+        string file
+        array imports
+    }
+
+    DEPENDENCY {
+        string name
+        string version
+        string scope
+    }
+
+    OUTPUT {
+        string baseDir
+        string format
+        boolean force
+        array filesWritten
+    }
+
+    HEALTH_REPORT {
+        number overallScore
+        string overallGrade
+        string analyzedAt
+        array categories
+    }
+
+    HISTORY_ENTRY {
+        string analyzedAt
+        number overallScore
+        string overallGrade
+        array categories
+    }
+
+    ENGINE {
+        string name
+        string type
+        string status
+    }

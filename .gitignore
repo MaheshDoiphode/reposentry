@@ -5,7 +5,7 @@ node_modules
 dist
 
 # Tool output
-.reposentry
+# .reposentry
 
 # Logs
 npm-debug.log*

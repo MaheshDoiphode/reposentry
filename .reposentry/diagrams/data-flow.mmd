@@ -1,0 +1,53 @@
+sequenceDiagram
+    participant Client as User/Client
+    participant CLI as CLI Interface
+    participant Orchestrator as Orchestrator
+    participant Scanners as Scanners<br/>(File/Lang/Config)
+    participant Engines as Engines<br/>(Docs/Arch/Security)
+    participant Copilot as Copilot API
+    participant Output as Output Manager
+    participant Server as Web Server
+    participant DB as Generated Reports<br/>(JSON/MD/HTML)
+
+    Client->>CLI: reposentry analyze
+    CLI->>Orchestrator: runAnalysis(options)
+    activate Orchestrator
+    
+    Orchestrator->>Scanners: scanFiles()
+    Orchestrator->>Scanners: detectLanguages()
+    Orchestrator->>Scanners: detectConfigs()
+    Orchestrator->>Scanners: parseImports()
+    Orchestrator->>Scanners: detectRoutes()
+    Orchestrator->>Scanners: analyzeGitHistory()
+    activate Scanners
+    Scanners->>DB: Read codebase files
+    Scanners-->>Orchestrator: Return analysis data
+    deactivate Scanners
+    
+    Orchestrator->>Engines: runDocsEngine()
+    Orchestrator->>Engines: runArchitectureEngine()
+    Orchestrator->>Engines: runSecurityEngine()
+    activate Engines
+    Engines->>Copilot: buildPrompt()
+    Copilot->>Copilot: AI Analysis
+    Copilot-->>Engines: Return analysis
+    Engines-->>Orchestrator: Return engine results
+    deactivate Engines
+    
+    Orchestrator->>Output: Generate reports
+    activate Output
+    Output->>Output: Format (Markdown/HTML/JSON)
+    Output->>DB: Write reports
+    deactivate Output
+    
+    Orchestrator-->>CLI: Analysis complete
+    deactivate Orchestrator
+    
+    CLI-->>Client: Display results
+    
+    Client->>CLI: reposentry serve
+    CLI->>Server: startServer(port, outputDir)
+    activate Server
+    Server->>DB: Read generated reports
+    Server-->>Client: Serve via HTTP
+    deactivate Server

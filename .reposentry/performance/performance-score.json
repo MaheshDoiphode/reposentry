@@ -1,0 +1,61 @@
+{
+  "overall_score": 34,
+  "component_scores": {
+    "backend_performance": 32,
+    "frontend_performance": 0,
+    "database_efficiency": 55,
+    "caching_strategy": 20,
+    "infrastructure_optimization": 28
+  },
+  "scoring_breakdown": {
+    "backend_performance": {
+      "score": 32,
+      "issues": [
+        "30+ sync file I/O operations in async contexts blocking event loop",
+        "70+ console.log calls in hot paths causing I/O overhead",
+        "2 nested await loops causing sequential async operations",
+        "3 large JSON.stringify operations for CPU-intensive processing"
+      ],
+      "weight": 0.40
+    },
+    "frontend_performance": {
+      "score": 0,
+      "notes": "Not applicable - backend/CLI application",
+      "weight": 0.00
+    },
+    "database_efficiency": {
+      "score": 55,
+      "issues": [
+        "2 SELECT * queries fetching unnecessary data",
+        "No evidence of query optimization or indexes"
+      ],
+      "weight": 0.20
+    },
+    "caching_strategy": {
+      "score": 20,
+      "issues": [
+        "No caching middleware detected",
+        "No caching strategy evident in application",
+        "All requests processed without caching layer"
+      ],
+      "weight": 0.15
+    },
+    "infrastructure_optimization": {
+      "score": 28,
+      "issues": [
+        "3+ missing compression middleware in Express application",
+        "No async operation optimization",
+        "No connection pooling strategy evident",
+        "Blocking I/O in critical paths"
+      ],
+      "weight": 0.25
+    }
+  },
+  "critical_issues": [
+    "Synchronous file I/O blocking async contexts",
+    "Excessive logging in production paths",
+    "Missing compression middleware",
+    "No caching strategy"
+  ],
+  "weighted_calculation": "(32 × 0.40) + (0 × 0.00) + (55 × 0.20) + (20 × 0.15) + (28 × 0.25) = 34"
+}

@@ -1,0 +1,61 @@
+{
+  "project": "reposentry",
+  "analyzedAt": "Tue, 10 Feb 2026 00:00:27 GMT",
+  "overallScore": 44,
+  "overallGrade": "F",
+  "languages": [
+    "TypeScript",
+    "JavaScript/TypeScript"
+  ],
+  "frameworks": [
+    "TypeScript",
+    "Express.js"
+  ],
+  "filesScanned": 54,
+  "totalFiles": 55,
+  "categories": [
+    {
+      "name": "Documentation",
+      "score": 65,
+      "grade": "D",
+      "details": "README: yes, 3 routes, 0 tags, 6 recent commits"
+    },
+    {
+      "name": "Architecture",
+      "score": 75,
+      "grade": "C",
+      "details": "45 imports, 0 models, 3 routes, 45 top-level dirs"
+    },
+    {
+      "name": "Security",
+      "score": 26,
+      "grade": "F",
+      "details": "8 pattern findings (1H/3M/4L) + 3 AI findings | .gitignore: yes | .env committed: no"
+    },
+    {
+      "name": "CI/CD",
+      "score": 50,
+      "grade": "F",
+      "details": "Missing: Dockerfile, .env.example, docker-compose"
+    },
+    {
+      "name": "Testing",
+      "score": 70,
+      "grade": "C-",
+      "details": "8 test files, 3 routes, coverage ratio: 267%"
+    },
+    {
+      "name": "Performance",
+      "score": 10,
+      "grade": "F",
+      "details": "25 performance anti-patterns detected"
+    },
+    {
+      "name": "Collaboration",
+      "score": 15,
+      "grade": "F",
+      "details": "Missing: PR template, issue templates, CODEOWNERS | 1 contributors"
+    }
+  ],
+  "historyEntries": 1
+}
